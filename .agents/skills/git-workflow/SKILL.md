@@ -44,8 +44,8 @@ description: Branch, commit, sync, and merge in secure-notify following gitflow 
    renumbering yours (see [database-migration](../database-migration/SKILL.md)).
 6. **Agents:** follow [Rules for agents](../../../docs/engineering/git-workflow.md#rules-for-agents).
    Push only your own working branch, only within the authority you were given; never push to
-   `main` or `develop`, tag, rewrite published history, bypass hooks, merge, or add a pull request
-   to the merge queue.
+   `main` or `develop`, rewrite published history, or bypass hooks. Merge, queue, or tag only when a
+   maintainer explicitly instructs it for that specific pull request or release.
 
 ## Done when
 
