@@ -1,0 +1,43 @@
+secure-notify
+https://github.com/NicoTomasin/secure-notify
+
+Copyright (C) 2026 The secure-notify contributors
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+for more details. You should have received a copy of the GNU Affero General
+Public License along with this program (see the LICENSE file). If not, see
+<https://www.gnu.org/licenses/>.
+
+ADDITIONAL TERMS (section 7(b) of the GNU Affero General Public License v3)
+
+Any conveyed copy or modified version of this program, and any work based
+on it, must preserve the following author attribution:
+
+    Based on secure-notify (https://github.com/NicoTomasin/secure-notify)
+
+The attribution must be kept:
+  1. in this NOTICE file, or an equivalent file, in every source
+     distribution; and
+  2. in the program's Appropriate Legal Notices, including any user-facing
+     "about", "help", or "credits" output (for the bot: the /about command).
+
+ADDITIONAL PERMISSION (section 7 of the GNU Affero General Public License v3)
+
+If you modify this program, or any covered work, by loading or combining
+it with a Plugin, the licensors of this program grant you additional
+permission to convey the resulting work. Corresponding Source for a
+non-source form of such a combination need not include the source code
+of the Plugin.
+
+"Plugin" means a WebAssembly component that interacts with this program
+exclusively through the plugin interfaces published in the sdk/wit
+directory of the secure-notify repository, and that contains no part of
+this program other than material licensed under the MIT License or the
+Apache License, Version 2.0.

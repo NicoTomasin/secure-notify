@@ -1,0 +1,29 @@
+# Build output
+/target/
+
+# Local development state: scratch data directories, local databases, logs
+# (see docs/engineering/local-development.md)
+/.local/
+
+# Environment files hold secrets; only the template is committed
+.env
+.env.*
+!.env.example
+
+# Databases outside committed fixtures (migration fixtures are SQL dumps)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Unreviewed snapshot files (see docs/engineering/testing.md#snapshots)
+*.snap.new
+*.pending-snap
+
+# Mutation testing output
+/mutants.out*/
+
+# Operating system files
+.DS_Store
+Thumbs.db
