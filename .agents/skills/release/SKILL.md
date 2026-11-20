@@ -33,7 +33,9 @@ description: Cut a secure-notify application release or hotfix with gitflow (rel
 7. **Merge** the release pull request into `main` with a merge commit. Tag `main`:
    `git tag -a vX.Y.Z -m "vX.Y.Z"` and push the tag. The release workflow waits for a maintainer's
    approval in its protected environment.
-8. **Back-merge:** open a pull request from `main` into `develop` and merge it with a merge commit.
+8. **Back-merge:** `git switch -c backmerge/X.Y.Z origin/main`, push it, open a pull request into
+   `develop`, and merge it with a merge commit. Never use `main` itself as the head branch: merged
+   head branches are deleted automatically.
 9. **Check the published artifacts:** every Tier 1 target present, signatures verify, SBOM and
    provenance attached, container image tags correct
    ([Integrity](../../../docs/engineering/releases.md#integrity)).
@@ -48,8 +50,10 @@ description: Cut a secure-notify application release or hotfix with gitflow (rel
 
 ## Agents
 
-Agents may prepare branches, version bumps, and release-note drafts. They MUST NOT push tags,
-approve the release environment, or publish anything.
+Agents may prepare branches, version bumps, and release-note drafts. They push tags, merge the
+release pull requests, or publish a release only when a maintainer explicitly instructs it for that
+specific release ([Rules for agents](../../../docs/engineering/git-workflow.md#rules-for-agents)),
+and say so in the release. They never approve the protected release environment.
 
 ## Done when
 
