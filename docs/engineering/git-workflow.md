@@ -88,7 +88,7 @@ What a release involves beyond branching is in [releases.md](releases.md).
 
 ## Merge queue
 
-> Status: `Decided` (`develop` merges through a merge queue) / `Proposed` (details)
+> Status: `Decided` (`develop` merges through a merge queue) / `Proposed` (details and interim rule)
 
 Many pull requests can pass CI on their own and still break `develop` together: two changes that
 conflict semantically without a textual conflict, or two migrations with the same sequence number.
@@ -106,14 +106,21 @@ The merge queue prevents that by testing each pull request on top of everything 
   failure involves before it is queued again.
 - Merges into `main` (release and hotfix branches) are rare and serialized by maintainers; they do
   not use the queue.
+- **Interim rule:** the merge queue is not available to repositories owned by a personal account,
+  which is the case of the canonical repository (see
+  [../product/licensing.md](../product/licensing.md#repository-url)). Until the repository can use
+  a merge queue, a pull request merges into `develop` only when its branch is up to date with
+  `develop` and the required checks passed on that state. This gives the same guarantee one pull
+  request at a time: when another pull request merges first, the author updates the branch and the
+  checks run again.
 
 ## Protected branches
 
 > Status: `Proposed`
 
 - `main` and `develop` are protected: no direct pushes, no force-pushes, no deletion; changes arrive
-  only through pull requests with passing CI, and into `develop` only through the
-  [merge queue](#merge-queue).
+  only through pull requests with passing CI, and into `develop` only as described in
+  [Merge queue](#merge-queue).
 - Pull requests need the approval of a reviewer for the area or of a maintainer (see
   [../community/governance.md](../community/governance.md#roles)). While the project has a single
   maintainer, that maintainer MAY merge their own pull requests once CI passes.
