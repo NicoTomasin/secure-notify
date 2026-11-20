@@ -45,9 +45,10 @@ description: Prepare and open a secure-notify pull request. Self-review the diff
 9. **During review:** answer each comment, push new commits instead of rewriting reviewed ones, and
    rerun the affected verification after substantive changes. Mark the pull request ready only when
    nothing in the verification section is missing.
-10. **Merge queue:** after approval, a reviewer or maintainer adds the pull request to the merge
-    queue. If the queue removes it because a check failed on top of the latest `develop`, update the
-    branch from `develop`, fix the cause, and rerun the local verification of the areas involved
+10. **Merging:** after approval, a reviewer or maintainer merges through the merge queue (or, under
+    the interim rule, once the branch is up to date with `develop`). If a check fails on top of the
+    latest `develop`, update the branch from `develop`, fix the cause, and rerun the local
+    verification of the areas involved
     ([git-workflow.md: Merge queue](../../../docs/engineering/git-workflow.md#merge-queue)).
 
 ## Done when
