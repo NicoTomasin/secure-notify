@@ -30,6 +30,7 @@ What a release involves beyond branching is in [releases.md](releases.md).
 | `bugfix/<topic>` | `develop` | `develop` | Fixes for bugs that do not need an immediate release. |
 | `release/<X.Y.Z>` | `develop` | `main`, then back into `develop` | Stabilizing a release: version bump, release notes, and fixes only. Maintainers only. |
 | `hotfix/<X.Y.Z>` | `main` | `main`, then back into `develop` | Urgent fixes for the latest release, including security fixes. Maintainers only. |
+| `backmerge/<X.Y.Z>` | `main`, right after a release or hotfix merge | `develop` | Carries the back-merge, so that `main` itself is never the head branch of a pull request (merged head branches are deleted automatically). Maintainers only. |
 
 - `<topic>` is short, lowercase, and kebab-case, optionally prefixed with an issue number
   (`feature/123-osv-mirror`).
@@ -77,7 +78,7 @@ What a release involves beyond branching is in [releases.md](releases.md).
 |---|---|---|
 | `feature/*`, `bugfix/*` | `develop` | Squash merge, through the [merge queue](#merge-queue). |
 | `release/*`, `hotfix/*` | `main` | Merge commit (no squash, no rebase), so the back-merge is clean. |
-| `main` (after a release or hotfix) | `develop` | Merge commit through a pull request opened right after the merge into `main`. |
+| `backmerge/*` (equal to `main` after a release or hotfix) | `develop` | Merge commit, through a pull request opened right after the merge into `main`. |
 
 - The history of `main` and `develop` is never rewritten.
 - While a branch is private, it is kept current by rebasing onto its base. Once someone else builds
@@ -88,7 +89,7 @@ What a release involves beyond branching is in [releases.md](releases.md).
 
 ## Merge queue
 
-> Status: `Decided` (`develop` merges through a merge queue) / `Proposed` (details)
+> Status: `Decided` (`develop` merges through a merge queue) / `Proposed` (details and interim rule)
 
 Many pull requests can pass CI on their own and still break `develop` together: two changes that
 conflict semantically without a textual conflict, or two migrations with the same sequence number.
@@ -106,18 +107,36 @@ The merge queue prevents that by testing each pull request on top of everything 
   failure involves before it is queued again.
 - Merges into `main` (release and hotfix branches) are rare and serialized by maintainers; they do
   not use the queue.
+- **Interim rule:** the merge queue is not available to repositories owned by a personal account,
+  which is the case of the canonical repository (see
+  [../product/licensing.md](../product/licensing.md#repository-url)). Until the repository can use
+  a merge queue, a pull request merges into `develop` only when its branch is up to date with
+  `develop` and the required checks passed on that state. This gives the same guarantee one pull
+  request at a time: when another pull request merges first, the author updates the branch and the
+  checks run again.
 
 ## Protected branches
 
 > Status: `Proposed`
 
+These rules are enforced by repository rulesets, so they do not depend on anyone remembering them.
+
 - `main` and `develop` are protected: no direct pushes, no force-pushes, no deletion; changes arrive
-  only through pull requests with passing CI, and into `develop` only through the
-  [merge queue](#merge-queue).
+  only through pull requests with passing CI, and into `develop` only as described in
+  [Merge queue](#merge-queue).
+- Allowed merge methods follow [Merging](#merging): `develop` accepts squash merges and merge
+  commits (for back-merges), `main` accepts merge commits only, and rebase merging is disabled.
+  Squash and merge commits take the pull request title as their subject.
 - Pull requests need the approval of a reviewer for the area or of a maintainer (see
-  [../community/governance.md](../community/governance.md#roles)). While the project has a single
-  maintainer, that maintainer MAY merge their own pull requests once CI passes.
-- Tags `v*` are created only by maintainers, on `main`.
+  [../community/governance.md](../community/governance.md#roles)). A new push dismisses earlier
+  approvals, and every review conversation is resolved before merging. While the project has a
+  single maintainer, that maintainer MAY merge their own pull requests once CI passes; the rulesets
+  let maintainers skip the approval only inside a pull request, never for a direct push.
+- Required status checks are added to both rulesets, with "up to date before merging" for
+  `develop`, together with the first CI workflow (see
+  [conventions.md](conventions.md#continuous-integration)).
+- Tags `v*` are created only by maintainers, on `main`, and are never moved or deleted.
+- Merged head branches are deleted automatically.
 
 ## Rules for agents
 
@@ -128,4 +147,8 @@ The merge queue prevents that by testing each pull request on top of everything 
 - Agents MUST NOT push to `main` or `develop`, create or move release tags, force-push branches they
   did not create, rewrite published history, bypass hooks or commit signing, merge pull requests, or
   add them to the merge queue.
+- Exception: a maintainer MAY explicitly instruct an agent to merge specific pull requests or to tag
+  a specific release. The agent then acts with that maintainer's authority, follows the same
+  process (pull requests, merge methods, release steps), and says so in the pull request or
+  release. Direct pushes to `main` and `develop` remain forbidden.
 - Agents stage files explicitly and check the staged set before committing.

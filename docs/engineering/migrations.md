@@ -25,7 +25,7 @@ defined in [../architecture/data-model.md](../architecture/data-model.md#persist
   in the same pull request.
 - A migration merged into `develop` is immutable; mistakes are fixed with a new migration.
 - CI rejects duplicate sequence numbers and gaps. When two pull requests use the same number, the
-  one queued later fails that check in the merge queue (see
+  one merged later fails that check before merging (see
   [git-workflow.md](git-workflow.md#merge-queue)), and its author renumbers the migration.
 - Each migration runs inside a transaction and leaves the database consistent if it fails.
 - A migration expressed in Rust instead of SQL is allowed only when SQL cannot express the change,
