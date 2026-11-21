@@ -116,7 +116,7 @@ schemas/                      # generated JSON Schemas (MIT OR Apache-2.0)
 xtask/                        # development automation (cargo xtask), see engineering/local-development.md
 docs/                         # rules: the source of truth
 .agents/skills/               # procedures for agents and contributors, see engineering/workflow.md
-.github/                      # CI workflows and pull request template
+.github/                      # CI workflows, issue forms, and pull request template
 ```
 
 ## Crate dependencies

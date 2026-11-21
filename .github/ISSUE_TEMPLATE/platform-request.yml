@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Platform request
+description: Propose a messaging platform for secure-notify to deliver on.
+labels: ["platform", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Platforms are built in the order set in `docs/architecture/platforms.md` (section
+        "Platform order"). Requests for platforms already in that list are not needed.
+  - type: input
+    id: name
+    attributes:
+      label: Platform
+    validations:
+      required: true
+  - type: input
+    id: api
+    attributes:
+      label: Bot or messaging API documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: cost
+    attributes:
+      label: API cost for an instance operator
+      options:
+        - Free
+        - Free with limits
+        - Paid
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: onboarding
+    attributes:
+      label: Operator onboarding
+      description: What an operator has to do before the bot can send messages (app registration, phone number, review, tokens).
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Who would use it
+      description: Which teams or communities would receive notifications on this platform, and why the existing platforms do not serve them.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I would like to contribute the platform plugin myself.

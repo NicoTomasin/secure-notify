@@ -62,5 +62,11 @@ The project adopts the Contributor Covenant, version 2.1 (see
 
 - Issues for bugs, source requests, and proposals; pull requests for changes; repository
   discussions for questions and ideas.
+- Issues are opened with the repository's issue forms (bug report, source request, platform
+  request, feature or design change); blank issues are disabled. Each form applies its kind label
+  and `triage`, which a maintainer or area reviewer removes once the issue is confirmed, labeled,
+  or closed.
+- Issues and discussions never contain secrets or personal data (tokens, chat IDs, email
+  addresses).
 - Security issues are never discussed in public before a fix (see
   [`../../SECURITY.md`](../../SECURITY.md)).
