@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Bug report
+description: Something does not work as the docs describe.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Security vulnerabilities do not go here.** Report them privately as described in
+        `SECURITY.md` ("Report a vulnerability" in the Security tab).
+
+        Never include tokens, chat IDs, email addresses, or other personal data in an issue.
+        Questions go to Discussions.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, including messages or replies, with personal data removed.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: The behavior you expected, with a link to the doc section that describes it if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence of commands, bot messages, or uploads that shows the problem.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Sources and feeds
+        - Inventory and uploads
+        - Matching, rules, and severity
+        - Delivery and digests
+        - Bot commands and platforms
+        - Subscribers and access
+        - Exposure monitoring
+        - Web panel and HTTP
+        - Plugins and runtimes
+        - Installation, upgrades, and configuration
+        - Docs
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The secure-notify version, or the commit if you built from source.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - Release binary
+        - Container image
+        - Built from source
+        - Not applicable (docs)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and architecture
+      placeholder: e.g. Debian 13 on arm64
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log lines. Check that they contain no secrets or personal data.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: This issue contains no secrets or personal data.
+          required: true

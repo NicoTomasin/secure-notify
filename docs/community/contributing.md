@@ -5,7 +5,9 @@ plugins in any language, platform integrations, translations, and core code. Eve
 goes through a pull request and follows the docs in this folder; the docs are the source of truth
 (see [`../../AGENTS.md`](../../AGENTS.md)). The lifecycle of a change is in
 [../engineering/workflow.md](../engineering/workflow.md); each contribution path below has a
-matching skill in the [skills index](../../.agents/skills/README.md).
+matching skill in the [skills index](../../.agents/skills/README.md). Bug reports, source and
+platform requests, and proposals not yet ready as a pull request start as issues (see
+[governance.md](governance.md#communication)).
 
 ## Contribution paths
 

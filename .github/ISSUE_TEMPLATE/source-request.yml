@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Source request
+description: Propose a feed, API, page, or database for secure-notify to watch.
+labels: ["source", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening: check the candidates in `docs/product/sources-catalog.md` and the
+        acceptance criteria in `docs/community/contributing.md`. Built-in sources use free
+        access only; paid-only sources are not accepted.
+
+        Many sources need no code: a feed, simple API, or status page is one TOML file. If you
+        can write it, open a pull request instead (`.agents/skills/declarative-source/SKILL.md`).
+  - type: input
+    id: name
+    attributes:
+      label: Source name
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL of the feed, API, or page
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Vulnerability databases
+        - Distribution trackers
+        - Exploitation signals
+        - Malicious packages
+        - Vendor advisories
+        - National CERTs
+        - Breaches
+        - Attacks and ransomware
+        - Outages
+        - Security releases
+        - Community signals
+        - Exposure providers
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: access
+    attributes:
+      label: Access method
+      options:
+        - RSS or Atom feed
+        - JSON API
+        - Status page
+        - CSAF
+        - Bulk data dump
+        - HTML page (scraping)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: cost
+    attributes:
+      label: Access cost
+      options:
+        - Free, no key
+        - Free API key
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: terms
+    attributes:
+      label: Terms of use, robots rules, and rate limits
+      description: Links or quotes. Write "not stated" if the source publishes none.
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: What it adds
+      description: What this source reports that the existing sources do not, or reports earlier.
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample item
+      description: One item as the source publishes it, if available.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the sources catalog and the existing issues.
+          required: true
+        - label: The source is public and respects the ethical boundaries in `docs/product/vision.md`.
+          required: true
+        - label: I would like to contribute the source definition or plugin myself.

@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Feature or design change
+description: Propose a new feature or a change to a documented rule. Docs change first, then code.
+labels: ["design", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The docs in `docs/` define how secure-notify behaves, so every feature or design change
+        starts as a change to them. A change to a `Decided` rule is approved in an issue or
+        pull request before it is merged (`docs/community/governance.md`). For new sources or
+        platforms, use their own forms.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you cannot do today, or what goes wrong, and who it affects.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The behavior or rule you propose.
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Affected doc sections
+      placeholder: e.g. docs/architecture/delivery.md, section "Digests"
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status label of the affected rules
+      description: See "Decision status labels" in `AGENTS.md`.
+      multiple: true
+      options:
+        - Decided
+        - Proposed
+        - Open
+        - New rule
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current rule
+      description: Quote the rule your proposal changes, if any.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Other docs, compatibility of configuration or data, migrations, plugin API, privacy, or performance budgets your proposal touches.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and `docs/open-questions.md`.
+          required: true
