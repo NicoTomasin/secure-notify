@@ -46,7 +46,7 @@ free access.
 |---|---|---|
 | Vulnerability databases | OSV (aggregates GitHub Advisory Database, PyPA, RustSec, Go vulnerability database, and other ecosystem databases), GitHub Advisory Database, NVD API, CVE Program records (cvelistV5), EU Vulnerability Database (EUVD) | native |
 | Distribution trackers | Debian, Ubuntu (USN), Red Hat and other CSAF publishers, Alpine secdb | native or WASM |
-| Exploitation signals | CISA KEV, FIRST EPSS (enricher), Exploit-DB, Metasploit module additions, nuclei-templates additions | native, WASM, or declarative |
+| Exploitation signals | CISA KEV, FIRST EPSS (enricher), Exploit-DB, Metasploit module additions, nuclei-templates additions, tl;drCVE (tldrcve.com: RSS feed of curated, plain-English summaries of the most discussed CVEs, ranked by in-the-wild exploitation, KEV listing, and public exploit code) | native, WASM, or declarative |
 | Malicious packages | OSV `MAL-` entries (OpenSSF malicious packages), registry security announcements | native |
 | Vendor advisories | Vendor CSAF feeds and PSIRT RSS/APIs (e.g. Microsoft, Cisco, Fortinet, Palo Alto Networks, Ivanti, Citrix, VMware, Atlassian, Oracle, SAP, Siemens, Apple, Google Chrome, Mozilla) | declarative or WASM |
 | National CERTs | CISA advisories (including ICS), CERT-EU, NCSC (UK), CERT-Bund (CSAF), CERT-FR, JPCERT, other national CERTs with RSS or CSAF | declarative |
