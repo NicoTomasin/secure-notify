@@ -48,10 +48,11 @@ For team subscribers, only a manager (see "Permissions in groups") can link or u
 
 > Status: `Decided` (invite by default, optional open registration) / `Proposed` (details)
 
-- **Pairing.** On first boot the instance prints a one-time pairing code to its logs. The first
+- **Pairing.** On first boot the instance prints a one-time pairing code to its logs. Until an
+  admin exists, every start prints the same code again. The first
   person who sends `/start <code>` from any interactive platform becomes the **admin**.
 - **Invites.** Admins create single-use, expiring invite codes with `/invite` (for a person or for
-  a team). A person redeems one in a private chat with `/start <code>`; a team redeems one by
+  a team). An invite is valid for seven days. A person redeems one in a private chat with `/start <code>`; a team redeems one by
   adding the bot to a group and sending `/start <code>` there (by a group administrator).
 - **Open registration.** Disabled by default. When an admin enables it, people can join with
   `/start` alone, within limits set in the instance config:
@@ -65,6 +66,8 @@ For team subscribers, only a manager (see "Permissions in groups") can link or u
   | `registration.approval` | `none` or `manual` (admins approve each request) |
   | `registration.rate_limit` | Maximum new registrations per hour |
 
+- Pairing and invite codes are ten characters from the Crockford base32 alphabet, generated with a
+  cryptographically secure random source, and accepted in any letter case.
 - Messages from chats that are not registered endpoints MUST be ignored, except `/start` with a
   valid code (or `/start` alone in open mode). No data leakage, no command execution.
 

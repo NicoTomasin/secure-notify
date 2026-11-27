@@ -92,6 +92,8 @@ replaced; everything else is the real binary on a scratch database.
   file line by line, waits after each line until the instance is idle (no pending pipeline work and
   no notification due), prints a transcript, and exits with a non-zero status if a step failed or
   an error was logged.
+- Empty lines and lines starting with `#` are skipped. Until the first `:as`, lines come from the
+  user `console`.
 - Lines starting with `/` are bot commands. Lines starting with `:` are console directives:
 
   | Directive | Effect |

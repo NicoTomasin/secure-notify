@@ -13,9 +13,16 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Development-only tools: the console platform and the development clock
+# (docs/engineering/local-development.md#development-only-features).
+dev = []
+
 [dependencies]
 clap = { workspace = true }
 dotenvy = { workspace = true }
+getrandom = { workspace = true }
+secure-notify-conversation = { workspace = true }
 secure-notify-core = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
@@ -23,4 +30,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 jiff = { workspace = true }
 secure-notify-storage = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "io-std", "io-util", "fs"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

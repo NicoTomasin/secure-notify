@@ -2,13 +2,18 @@
 
 //! The secure-notify binary: command-line interface and wiring of the core to its adapters.
 
+mod app;
 mod config;
+#[cfg(feature = "dev")]
+mod console;
 mod logging;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
+use secure_notify_core::ports::SystemClock;
 use secure_notify_storage::{Database, OpenOptions};
 
 use crate::config::Settings;
@@ -31,6 +36,22 @@ enum Command {
     Backup {
         /// Destination file; it must not exist.
         path: PathBuf,
+    },
+    /// Development tools (built with the `dev` feature).
+    #[cfg(feature = "dev")]
+    #[command(subcommand)]
+    Dev(DevCommand),
+}
+
+/// Development-only subcommands.
+#[cfg(feature = "dev")]
+#[derive(Debug, Subcommand)]
+enum DevCommand {
+    /// Run the instance with the console platform.
+    Console {
+        /// Run this script, print the transcript, and exit.
+        #[arg(long)]
+        script: Option<PathBuf>,
     },
 }
 
@@ -75,6 +96,9 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
                 );
             }
             let database = open_database(&settings.data_dir).await?;
+            let conversation =
+                app::conversation(settings, database.clone(), Arc::new(SystemClock))?;
+            app::announce_pairing_code(&conversation).await?;
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
                 data_dir = %settings.data_dir.display(),
@@ -103,6 +127,20 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
                 .map_err(|e| format!("backup failed: {e}"))?;
             tracing::info!(path = %path.display(), "backup written");
             Ok(())
+        }
+        #[cfg(feature = "dev")]
+        Command::Dev(DevCommand::Console { script }) => {
+            let database = open_database(&settings.data_dir).await?;
+            let clock = Arc::new(console::DevClock::default());
+            let conversation = app::conversation(settings, database.clone(), clock.clone())?;
+            app::announce_pairing_code(&conversation).await?;
+            let ok = console::run(&conversation, &database, &clock, script.as_deref()).await?;
+            database.close();
+            if ok {
+                Ok(())
+            } else {
+                Err("console session failed: a step failed or an error was logged".to_string())
+            }
         }
     }
 }

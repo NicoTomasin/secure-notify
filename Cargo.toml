@@ -27,15 +27,20 @@ publish = false
 
 [workspace.dependencies]
 # Workspace crates
+secure-notify-conversation = { path = "crates/conversation" }
 secure-notify-core = { path = "crates/core" }
 secure-notify-model = { path = "crates/model" }
 secure-notify-storage = { path = "crates/storage" }
 
 # Third-party crates
+fluent-bundle = { version = "0.16", default-features = false }
+fluent-syntax = { version = "0.12", default-features = false }
+unic-langid = { version = "0.9", default-features = false }
+getrandom = { version = "0.4", default-features = false, features = ["std"] }
 dotenvy = { version = "0.15" }
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
 tracing = { version = "0.1", default-features = false, features = ["std", "attributes"] }
-tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "json", "ansi"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "json", "registry"] }
 clap = { version = "4", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
 insta = { version = "1" }
 rusqlite = { version = "0.43", default-features = false, features = ["bundled"] }
