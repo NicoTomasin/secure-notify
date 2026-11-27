@@ -1,0 +1,149 @@
+{
+  "$defs": {
+    "Capabilities": {
+      "additionalProperties": false,
+      "description": "Capabilities a plugin declares; the core enforces them.",
+      "properties": {
+        "hosts": {
+          "default": [],
+          "description": "The only hosts the plugin may contact.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secrets": {
+          "default": [],
+          "description": "Named secrets the operator must provide.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state": {
+          "default": false,
+          "description": "Whether the plugin keeps persistent state.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "PluginKind": {
+      "description": "Kinds of plugins (docs/architecture/plugins.md#plugin-kinds).",
+      "oneOf": [
+        {
+          "const": "source",
+          "description": "Fetches items on a schedule.",
+          "type": "string"
+        },
+        {
+          "const": "parser",
+          "description": "Turns uploaded files into components.",
+          "type": "string"
+        },
+        {
+          "const": "enricher",
+          "description": "Adds data to stories.",
+          "type": "string"
+        },
+        {
+          "const": "exposure-provider",
+          "description": "Checks watched identities.",
+          "type": "string"
+        },
+        {
+          "const": "platform",
+          "description": "Delivers messages and receives commands.",
+          "type": "string"
+        }
+      ]
+    },
+    "PluginRuntime": {
+      "description": "How a plugin runs (docs/architecture/plugin-runtimes.md).",
+      "oneOf": [
+        {
+          "const": "native",
+          "description": "Compiled into the binary.",
+          "type": "string"
+        },
+        {
+          "const": "wasm",
+          "description": "A WebAssembly component.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`plugin.toml`.",
+  "properties": {
+    "api": {
+      "description": "WIT world the plugin implements; required for WASM plugins.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "capabilities": {
+      "$ref": "#/$defs/Capabilities",
+      "default": {
+        "hosts": [],
+        "secrets": [],
+        "state": false
+      },
+      "description": "Declared capabilities."
+    },
+    "default_enabled": {
+      "default": true,
+      "description": "Whether the plugin is enabled when the operator says nothing.",
+      "type": "boolean"
+    },
+    "id": {
+      "description": "Plugin ID: lowercase ASCII letters, digits, and `-`; equal to its directory name.",
+      "type": "string"
+    },
+    "interval": {
+      "description": "Schedule, for sources and scheduled enrichers (`1h`, `30m`).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kind": {
+      "$ref": "#/$defs/PluginKind",
+      "description": "Plugin kind."
+    },
+    "license": {
+      "description": "SPDX license expression.",
+      "type": "string"
+    },
+    "mirror": {
+      "default": false,
+      "description": "Whether the source mirrors a whole database (exempt from retention).",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "Display name.",
+      "type": "string"
+    },
+    "runtime": {
+      "$ref": "#/$defs/PluginRuntime",
+      "description": "Runtime."
+    },
+    "version": {
+      "description": "Plugin version.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "runtime",
+    "version",
+    "license"
+  ],
+  "title": "Plugin manifest",
+  "type": "object"
+}

@@ -27,7 +27,40 @@ pub(crate) fn check(root: &Path) -> CheckResult {
     if taxonomy.is_dir() {
         collect(&taxonomy, &taxonomy, &mut files)?;
     }
-    secure_notify_model::load_taxonomy(&files)
-        .map(|_| ())
-        .map_err(|problems| problems.join("\n"))
+    let mut problems = secure_notify_model::load_taxonomy(&files)
+        .err()
+        .unwrap_or_default();
+    problems.extend(manifest_problems(&root.join("plugins"))?);
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(problems.join("\n"))
+    }
+}
+
+/// Problems in `plugins/<kind>/<id>/plugin.toml` files
+/// (docs/architecture/plugins.md#plugin-manifest).
+fn manifest_problems(plugins: &Path) -> Result<Vec<String>, String> {
+    let mut problems = Vec::new();
+    let Ok(kinds) = fs::read_dir(plugins) else {
+        return Ok(problems);
+    };
+    for kind in kinds.flatten().filter(|e| e.path().is_dir()) {
+        let directory = kind.file_name().to_string_lossy().into_owned();
+        let entries = fs::read_dir(kind.path()).map_err(|e| format!("{directory}: {e}"))?;
+        for plugin in entries.flatten().filter(|e| e.path().is_dir()) {
+            let name = plugin.file_name().to_string_lossy().into_owned();
+            let shown = format!("plugins/{directory}/{name}/plugin.toml");
+            match fs::read_to_string(plugin.path().join("plugin.toml")) {
+                Ok(text) => {
+                    if let Err(found) = secure_notify_model::load_manifest(&directory, &name, &text)
+                    {
+                        problems.extend(found.into_iter().map(|p| format!("{shown}: {p}")));
+                    }
+                }
+                Err(_) => problems.push(format!("{shown} is missing")),
+            }
+        }
+    }
+    Ok(problems)
 }

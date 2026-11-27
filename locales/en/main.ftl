@@ -8,6 +8,8 @@ language-name = English
 command-start = Join this instance with a code
 command-help = List the commands you can use
 command-about = License, version, and source code
+command-upload = How to send a manifest or lock file
+command-inventory = List, add, or remove inventory entries
 command-watch = Watch a technology
 command-unwatch = Stop watching something
 command-watching = List what you watch
@@ -35,6 +37,36 @@ help-line = /{ $command } — { $description }
 about-version = Version: { $version }
 about-license = License: { $license }
 about-source = Source code: { $url }
+
+## /upload and uploads
+
+upload-prompt = Send one of these files in this chat: { $files }. It is read once and never stored; only component names and versions are kept.
+upload-done = Inventory updated from { $file }: { $added } new, { $refreshed } already known.
+upload-technologies = Technologies detected, now watched: { $technologies }.
+upload-unsupported = I cannot read { $file }. Supported files: { $files }.
+upload-too-large = The file is larger than { $limit } MB.
+upload-too-many = The file lists more than { $limit } components.
+upload-timeout = Reading the file took too long. Try a smaller file.
+upload-malformed = { $file } could not be read; it does not look like a valid file of its kind.
+upload-bun-binary = Bun’s binary lockfile (bun.lockb) is not supported. Bun 1.2 and later write the text lockfile bun.lock; with older versions run “bun install --save-text-lockfile”. Then send bun.lock.
+
+## /inventory
+
+inventory-empty = Your inventory is empty. Send a lock file or use /inventory add <purl> <version>.
+inventory-header = { $count ->
+    [one] One entry:
+   *[other] { $count } entries:
+}
+inventory-no-version = (no version)
+inventory-more = …and { $count } more.
+inventory-usage = Use /inventory add <purl> [version], /inventory remove <purl>[@version], or /inventory clear.
+inventory-added = Added { $component } { $version }.
+inventory-invalid = “{ $component }” is not a package URL such as pkg:npm/lodash.
+inventory-removed = { $count ->
+    [one] Removed one entry.
+   *[other] Removed { $count } entries.
+}
+inventory-cleared = Your inventory was cleared ({ $count } entries removed).
 
 ## /watch, /unwatch, /watching
 

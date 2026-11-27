@@ -6,7 +6,11 @@ use std::sync::Arc;
 
 use secure_notify_conversation::{About, Conversation, I18n};
 use secure_notify_core::app::Core;
+use secure_notify_core::inventory::Parser;
 use secure_notify_core::ports::{Clock, Random};
+use secure_notify_parser_bun::BunParser;
+use secure_notify_parser_npm::NpmParser;
+use secure_notify_parser_pnpm::PnpmParser;
 use secure_notify_storage::Database;
 
 use crate::config::Settings;
@@ -24,6 +28,15 @@ impl Random for OsRandom {
     }
 }
 
+/// The built-in parser plugins.
+pub(crate) fn parsers() -> Arc<[Arc<dyn Parser>]> {
+    Arc::new([
+        Arc::new(NpmParser) as Arc<dyn Parser>,
+        Arc::new(PnpmParser),
+        Arc::new(BunParser),
+    ])
+}
+
 /// Builds the conversation layer over the database.
 pub(crate) fn conversation(
     settings: &Settings,
@@ -32,7 +45,13 @@ pub(crate) fn conversation(
 ) -> Result<Conversation<Database>, String> {
     let i18n = I18n::load().map_err(|e| format!("cannot load translations: {e}"))?;
     let taxonomy = crate::content::embedded_taxonomy()?;
-    let core = Core::new(database, Arc::new(taxonomy), clock, Arc::new(OsRandom));
+    let core = Core::new(
+        database,
+        Arc::new(taxonomy),
+        clock,
+        Arc::new(OsRandom),
+        parsers(),
+    );
     let about = About {
         version: env!("CARGO_PKG_VERSION").to_string(),
         source_url: settings.source_url.clone(),

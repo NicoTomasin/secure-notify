@@ -8,7 +8,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use jiff::{SignedDuration, Timestamp};
-use secure_notify_conversation::{ChatKind, CodeKind, Conversation, Incoming, render_plain};
+use secure_notify_conversation::{
+    Attachment, ChatKind, CodeKind, Conversation, Incoming, render_plain,
+};
 use secure_notify_core::ports::{Clock, InstanceStore};
 use secure_notify_core::subscribers::{EndpointRef, PAIRING_CODE_KEY};
 use secure_notify_core::time::parse_duration;
@@ -143,15 +145,37 @@ async fn step(
                     fail(session, raw, &problem);
                 }
             }
-            ("upload" | "ingest", _) => {
-                fail(session, raw, "this directive is not available yet");
-            }
+            ("upload", path) if !path.is_empty() => match tokio::fs::read(path).await {
+                Ok(bytes) => {
+                    let filename = Path::new(path)
+                        .file_name()
+                        .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                    let attachment = Attachment { filename, bytes };
+                    send(conversation, session, String::new(), Some(attachment)).await;
+                }
+                Err(e) => fail(session, raw, &format!("cannot read {path}: {e}")),
+            },
+            ("ingest", _) => fail(session, raw, "this directive is not available yet"),
             _ => fail(session, raw, "unknown or incomplete directive"),
         }
         return;
     }
+    send(conversation, session, line, None).await;
+}
+
+/// Sends a message (and optionally a file) from the current user and chat, and prints the reply.
+async fn send(
+    conversation: &Conversation<Database>,
+    session: &mut Session,
+    line: String,
+    attachment: Option<Attachment>,
+) {
     let (address, chat_kind) = session.chat();
-    print(&format!("[{address}] > {line}"));
+    if let Some(file) = &attachment {
+        print(&format!("[{address}] > (file {})", file.filename));
+    } else {
+        print(&format!("[{address}] > {line}"));
+    }
     let incoming = Incoming {
         endpoint: EndpointRef {
             platform: PLATFORM.to_string(),
@@ -160,6 +184,7 @@ async fn step(
         chat_kind,
         text: line.clone(),
         language_hint: None,
+        attachment,
     };
     session.last_output.clear();
     if let Some(reply) = conversation.handle(&incoming).await {

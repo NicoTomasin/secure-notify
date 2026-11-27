@@ -9,11 +9,17 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use jiff::{SignedDuration, Timestamp};
-use secure_notify_conversation::{About, ChatKind, Conversation, I18n, Incoming, render_plain};
+use secure_notify_conversation::{
+    About, Attachment, ChatKind, Conversation, I18n, Incoming, render_plain,
+};
 use secure_notify_core::app::Core;
+use secure_notify_core::inventory::Parser;
 use secure_notify_core::ports::{Clock, Random};
 use secure_notify_core::subscribers::EndpointRef;
 use secure_notify_core::taxonomy::Taxonomy;
+use secure_notify_parser_bun::BunParser;
+use secure_notify_parser_npm::NpmParser;
+use secure_notify_parser_pnpm::PnpmParser;
 use secure_notify_storage::{Database, OpenOptions};
 
 pub struct TestClock(pub Mutex<Timestamp>);
@@ -35,6 +41,15 @@ impl Random for CountingRandom {
             *next = next.wrapping_add(7);
         }
     }
+}
+
+/// The built-in parsers, as the binary wires them.
+pub fn parsers() -> Arc<[Arc<dyn Parser>]> {
+    Arc::new([
+        Arc::new(NpmParser) as Arc<dyn Parser>,
+        Arc::new(PnpmParser),
+        Arc::new(BunParser),
+    ])
 }
 
 /// The taxonomy files of the repository's `content/` directory.
@@ -65,7 +80,7 @@ pub struct Instance {
     pub conversation: Conversation<Database>,
     pub database: Database,
     pub clock: Arc<TestClock>,
-    _dir: tempfile::TempDir,
+    temp_dir: tempfile::TempDir,
 }
 
 impl Instance {
@@ -86,6 +101,7 @@ impl Instance {
             Arc::new(repository_taxonomy()),
             clock.clone(),
             Arc::new(CountingRandom(Mutex::new(1))),
+            parsers(),
         );
         let about = About {
             version: "0.0.0-test".to_string(),
@@ -95,8 +111,13 @@ impl Instance {
             conversation: Conversation::new(core, I18n::load().unwrap(), about),
             database,
             clock,
-            _dir: dir,
+            temp_dir: dir,
         }
+    }
+
+    /// The data directory of the instance.
+    pub fn dir(&self) -> &Path {
+        self.temp_dir.path()
     }
 
     pub async fn pairing_code(&self) -> String {
@@ -138,6 +159,28 @@ impl Instance {
             chat_kind,
             text: text.to_string(),
             language_hint: language_hint.map(str::to_string),
+            attachment: None,
+        };
+        self.conversation
+            .handle(&incoming)
+            .await
+            .map(|m| render_plain(&m))
+    }
+
+    /// Sends a file from a private chat.
+    pub async fn upload(&self, user: &str, filename: &str, bytes: Vec<u8>) -> Option<String> {
+        let incoming = Incoming {
+            endpoint: EndpointRef {
+                platform: "test".to_string(),
+                address: user.to_string(),
+            },
+            chat_kind: ChatKind::Private,
+            text: String::new(),
+            language_hint: None,
+            attachment: Some(Attachment {
+                filename: filename.to_string(),
+                bytes,
+            }),
         };
         self.conversation
             .handle(&incoming)

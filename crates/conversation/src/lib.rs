@@ -11,7 +11,7 @@ mod handler;
 pub mod i18n;
 pub mod message;
 
-pub use handler::{ATTRIBUTION, About, ChatKind, Conversation, Incoming, LICENSE};
+pub use handler::{ATTRIBUTION, About, Attachment, ChatKind, Conversation, Incoming, LICENSE};
 pub use i18n::I18n;
 pub use message::{Action, Block, CodeKind, GeneratedCode, Message, render_plain};
 

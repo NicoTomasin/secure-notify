@@ -1,0 +1,65 @@
+{
+  "name": "nodejs.org",
+  "requires": true,
+  "lockfileVersion": 1,
+  "dependencies": {
+    "acorn": {
+      "version": "6.1.1",
+      "resolved": "https://registry.npmjs.org/acorn/-/acorn-6.1.1.tgz",
+      "integrity": "sha512-jPTiwtOxaHNaAPg/dmrJ/beuzLRnXtB0kQPQ8JpotKJgTB6rX6c8mlf315941pyjBSaPg8NHXS9fhP4u17DpGA==",
+      "dev": true
+    },
+    "anymatch": {
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/anymatch/-/anymatch-2.0.0.tgz",
+      "integrity": "sha512-5teOsQWABXHHBFP9y3skS5P3d/WfWXpv3FUpy+LorMrNYaT9pI4oLMQX7jzQ2KklNpGpWHzdCXTDT2Y3XGlZBw==",
+      "requires": {
+        "micromatch": "^3.1.4",
+        "normalize-path": "^2.1.1"
+      },
+      "dependencies": {
+        "normalize-path": {
+          "version": "2.1.1",
+          "resolved": "https://registry.npmjs.org/normalize-path/-/normalize-path-2.1.1.tgz",
+          "integrity": "sha1-GrKLVW4Zg2Oowab35vogE3/mrtk=",
+          "requires": {
+            "remove-trailing-separator": "^1.0.1"
+          }
+        }
+      }
+    },
+    "bl": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/bl/-/bl-1.0.3.tgz",
+      "integrity": "sha1-/FQhoo/UImA2w7OJGmaiW8ZNIm4=",
+      "requires": {
+        "readable-stream": "~2.0.5"
+      },
+      "dependencies": {
+        "process-nextick-args": {
+          "version": "1.0.7",
+          "resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-1.0.7.tgz",
+          "integrity": "sha1-FQ4gt1ZZCtP5EJPyWk8q2L/zC6M="
+        },
+        "readable-stream": {
+          "version": "2.0.6",
+          "resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.0.6.tgz",
+          "integrity": "sha1-j5A0HmilPMySh4jaz80Rs265t44=",
+          "requires": {
+            "core-util-is": "~1.0.0",
+            "inherits": "~2.0.1",
+            "isarray": "~1.0.0",
+            "process-nextick-args": "~1.0.6",
+            "string_decoder": "~0.10.x",
+            "util-deprecate": "~1.0.1"
+          }
+        },
+        "string_decoder": {
+          "version": "0.10.31",
+          "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-0.10.31.tgz",
+          "integrity": "sha1-YuIDvEF2bGwoyfyEMB2rHFMQ+pQ="
+        }
+      }
+    }
+  }
+}
