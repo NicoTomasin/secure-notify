@@ -1,3 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Domain logic of secure-notify: pipeline, scheduler, correlation, matching, and delivery, with the ports adapters implement.
+//! Domain logic of secure-notify: pipeline, scheduler, correlation, matching, and delivery, with
+//! the ports adapters implement (docs/architecture/overview.md).
+//!
+//! The core holds the domain logic and defines traits ([`ports`]) for everything it needs from the
+//! outside world; other crates implement them and only the binary wires them together.
+
+pub mod ports;
+pub mod secret;
+pub mod time;
+
+pub use secret::Secret;

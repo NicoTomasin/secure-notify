@@ -227,3 +227,21 @@ async fn backup_is_a_consistent_copy_that_refuses_to_overwrite() {
         "{again:?}"
     );
 }
+
+#[tokio::test]
+async fn instance_values_are_stored_and_replaced() {
+    use secure_notify_core::ports::InstanceStore;
+    let dir = tempfile::tempdir().unwrap();
+    let db = open(dir.path());
+    assert_eq!(db.instance_value("pairing_code").await.unwrap(), None);
+    db.set_instance_value("pairing_code", "first")
+        .await
+        .unwrap();
+    db.set_instance_value("pairing_code", "second")
+        .await
+        .unwrap();
+    assert_eq!(
+        db.instance_value("pairing_code").await.unwrap().as_deref(),
+        Some("second")
+    );
+}

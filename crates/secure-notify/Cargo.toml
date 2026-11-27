@@ -15,6 +15,12 @@ workspace = true
 
 [dependencies]
 clap = { workspace = true }
+dotenvy = { workspace = true }
+secure-notify-core = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 jiff = { workspace = true }
 secure-notify-storage = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
