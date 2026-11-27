@@ -29,7 +29,7 @@ reorder or change them only with maintainer confirmation.
 
 ### Contents
 
-> Status: `Proposed`
+> Status: `Decided`
 
 | Area | In the MVP |
 |---|---|

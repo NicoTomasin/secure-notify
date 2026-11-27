@@ -34,7 +34,7 @@ schema changes follow [migrations.md](migrations.md); branches follow
 
 ## Integrity
 
-> Status: `Proposed`
+> Status: `Decided` (`0.1.0` ships without signatures, SBOM, and provenance) / `Proposed` (rest)
 
 - Every release artifact and image after `0.1.0`, the MVP release (see
   [../roadmap.md](../roadmap.md#phase-1-mvp)), is signed (keyless signing tied to the release

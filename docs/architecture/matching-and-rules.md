@@ -145,7 +145,7 @@ or component version; optionally time-limited) are applied before rules, and the
 
 ## Minimum severity
 
-> Status: `Decided` (per-subscriber floor) / `Proposed` (command syntax)
+> Status: `Decided`
 
 - Each subscriber MAY set a minimum severity. It is unset by default.
 - It applies after the rules: a story that a rule notifies is still not notified when its severity

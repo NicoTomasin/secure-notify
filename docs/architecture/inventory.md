@@ -23,7 +23,7 @@ uses locally mirrored data, so the inventory never leaves the instance.
 
 ## Inventory stays local
 
-> Status: `Proposed`
+> Status: `Decided` (single-ecosystem mirror from the first start) / `Proposed` (rest)
 
 - Inventory entries MUST NOT be sent to any third party, including vulnerability database APIs.
 - Exact-version matching uses vulnerability data mirrored locally by sources (see

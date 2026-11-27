@@ -36,7 +36,7 @@ Each step names the skill that holds its procedure (see [Agent skills](#agent-sk
 
 ## Local verification
 
-> Status: `Decided` (local verification before review is required) / `Proposed` (minimum per change type)
+> Status: `Decided` (local verification before review is required; developer tooling minimum) / `Proposed` (other minimums per change type)
 
 - Before a pull request is marked ready for review, its author MUST have run the changed flow
   locally, on the real binary or tool for that kind of change (not only its tests), and MUST
