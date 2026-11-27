@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+name = "secure-notify-model"
+description = "Canonical types of secure-notify, from which the JSON Schemas are generated."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

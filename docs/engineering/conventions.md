@@ -52,6 +52,8 @@ CI runs on GitHub Actions:
 - formatting, lints, tests (all workspace crates and plugins), MSRV build;
 - workspace dependency graph against the crate dependency table (see
   [../architecture/overview.md](../architecture/overview.md#crate-dependencies));
+- SPDX headers on every source file, with the license of its path (see
+  [../product/licensing.md](../product/licensing.md#source-files-and-packages));
 - cargo-deny (licenses, advisories, bans, sources);
 - schema validation for content, manifests, and generated JSON Schemas (generated files must be up
   to date);

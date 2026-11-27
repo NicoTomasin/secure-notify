@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# unwrap/expect are allowed in tests only (docs/engineering/conventions.md#rust).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-print-in-tests = true

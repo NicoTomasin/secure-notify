@@ -52,8 +52,8 @@ are licensed **MIT OR Apache-2.0**:
 | `schemas/` | JSON Schemas (normalized event, canonical feed, plugin manifest, declarative source, content bundle). |
 | `crates/model/` | Canonical Rust types from which the JSON Schemas are generated. |
 
-- `LICENSE-MIT` and `LICENSE-APACHE` files are added at the repository root when the first of these
-  paths is created.
+- The license texts are in [`../../LICENSE-MIT`](../../LICENSE-MIT) and
+  [`../../LICENSE-APACHE`](../../LICENSE-APACHE).
 - Implementing the canonical feed protocol (see
   [../architecture/feed-protocol.md](../architecture/feed-protocol.md)) requires no license.
 - Plugins inside this repository are AGPL-3.0-or-later like the rest of the repository.

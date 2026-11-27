@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[package]
+name = "secure-notify-storage"
+description = "SQLite persistence for secure-notify, with the embedded migrations."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
