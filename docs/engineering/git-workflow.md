@@ -132,9 +132,9 @@ These rules are enforced by repository rulesets, so they do not depend on anyone
   approvals, and every review conversation is resolved before merging. While the project has a
   single maintainer, that maintainer MAY merge their own pull requests once CI passes; the rulesets
   let maintainers skip the approval only inside a pull request, never for a direct push.
-- Required status checks are added to both rulesets, with "up to date before merging" for
-  `develop`, together with the first CI workflow (see
-  [conventions.md](conventions.md#continuous-integration)).
+- Both rulesets require the pull request checks, reported by the `ci` job of the CI workflow
+  (`.github/workflows/ci.yml`, see [conventions.md](conventions.md#continuous-integration)), with
+  "up to date before merging" for `develop`.
 - Tags `v*` are created only by maintainers, on `main`, and are never moved or deleted.
 - Merged head branches are deleted automatically.
 
