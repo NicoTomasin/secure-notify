@@ -8,6 +8,7 @@
 //! (docs/engineering/migrations.md).
 
 mod database;
+mod instance;
 mod migrations;
 
 use std::path::PathBuf;

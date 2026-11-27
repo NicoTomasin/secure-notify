@@ -2,11 +2,16 @@
 
 //! The secure-notify binary: command-line interface and wiring of the core to its adapters.
 
+mod config;
+mod logging;
+
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use secure_notify_storage::{Database, OpenOptions};
+
+use crate::config::Settings;
 
 /// Self-hosted notification bot for security and reliability events.
 #[derive(Debug, Parser)]
@@ -18,6 +23,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Run the instance.
+    Run,
     /// Apply pending database migrations (normally done at startup).
     Migrate,
     /// Write a consistent backup of the database to a new file.
@@ -34,27 +41,67 @@ const BACKUP_DIR: &str = "backups";
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    // Local runs read `.env` (docs/engineering/local-development.md#environment); variables
+    // already set in the environment take precedence.
+    if let Err(error) = dotenvy::dotenv()
+        && !error.not_found()
+    {
+        return fail(&format!("cannot read .env: {error}"));
+    }
+    let settings = match config::load(&config::ProcessSource) {
+        Ok(settings) => settings,
+        Err(error) => return fail(&error.to_string()),
+    };
+    logging::init(settings.log_level);
     let runtime = match tokio::runtime::Runtime::new() {
         Ok(runtime) => runtime,
         Err(error) => return fail(&format!("cannot start the async runtime: {error}")),
     };
-    let data_dir = PathBuf::from(std::env::var("DATA_DIR").unwrap_or_else(|_| "data".to_string()));
-    match runtime.block_on(run(cli.command, &data_dir)) {
+    match runtime.block_on(run(cli.command, &settings)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => fail(&message),
     }
 }
 
-async fn run(command: Command, data_dir: &Path) -> Result<(), String> {
-    let database = open_database(data_dir).await?;
+async fn run(command: Command, settings: &Settings) -> Result<(), String> {
     match command {
-        Command::Migrate => Ok(()),
+        Command::Run => {
+            // At least one platform MUST be configured
+            // (docs/operations/self-hosting.md#configuration).
+            if settings.telegram_bot_token.is_none() {
+                return Err(
+                    "no platform is configured: set TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN_FILE"
+                        .to_string(),
+                );
+            }
+            let database = open_database(&settings.data_dir).await?;
+            tracing::info!(
+                version = env!("CARGO_PKG_VERSION"),
+                data_dir = %settings.data_dir.display(),
+                source_url = %settings.source_url,
+                grace_window = %settings.instance.correlation.grace_window,
+                retention_events = %settings.instance.retention.events,
+                retention_dedup = %settings.instance.retention.dedup,
+                "instance started"
+            );
+            tokio::signal::ctrl_c()
+                .await
+                .map_err(|e| format!("cannot wait for the shutdown signal: {e}"))?;
+            tracing::info!("shutting down");
+            database.close();
+            Ok(())
+        }
+        Command::Migrate => {
+            open_database(&settings.data_dir).await?;
+            Ok(())
+        }
         Command::Backup { path } => {
+            let database = open_database(&settings.data_dir).await?;
             database
                 .backup(&path)
                 .await
                 .map_err(|e| format!("backup failed: {e}"))?;
-            report(&format!("backup written to {}", path.display()));
+            tracing::info!(path = %path.display(), "backup written");
             Ok(())
         }
     }
@@ -73,34 +120,20 @@ async fn open_database(data_dir: &Path) -> Result<Database, String> {
         .await
         .map_err(|e| format!("cannot open the database: {e}"))?
         .map_err(|e| format!("cannot open the database: {e}"))?;
-    if migration.from_version == migration.to_version {
-        report(&format!(
-            "database schema is current (version {})",
-            migration.to_version
-        ));
-    } else {
-        report(&format!(
-            "database schema migrated from version {} to {}",
-            migration.from_version, migration.to_version
-        ));
+    if let Some(backup) = &migration.backup {
+        tracing::info!(path = %backup.display(), "pre-migration backup written");
     }
-    if let Some(backup) = migration.backup {
-        report(&format!(
-            "pre-migration backup written to {}",
-            backup.display()
-        ));
-    }
+    tracing::info!(
+        from_version = migration.from_version,
+        to_version = migration.to_version,
+        "database schema ready"
+    );
     Ok(database)
-}
-
-/// Output of admin subcommands, for the operator running them.
-#[allow(clippy::print_stdout)]
-fn report(message: &str) {
-    println!("{message}");
 }
 
 #[allow(clippy::print_stderr)]
 fn fail(message: &str) -> ExitCode {
+    tracing::error!("{message}");
     eprintln!("error: {message}");
     ExitCode::FAILURE
 }
