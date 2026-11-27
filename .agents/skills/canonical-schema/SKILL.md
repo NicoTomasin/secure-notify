@@ -31,7 +31,8 @@ kinds, or the shape of canonical feed responses.
    [scope.md](../../../docs/product/scope.md#event-kinds).
 3. **Edit the Rust types** in `crates/model/`. The crate is MIT OR Apache-2.0: permissive
    dependencies only, matching SPDX headers.
-4. **Regenerate the JSON Schemas** and commit the generated files; CI fails when they are stale.
+4. **Regenerate the JSON Schemas** with `cargo xtask gen-schemas` and commit the generated files;
+   CI fails when they are stale.
 5. **WIT:** bump the package version for breaking changes; the host keeps supporting the previous
    major version of each world.
 6. **Update every producer and consumer:** normalizer validation, declarative engine defaults and

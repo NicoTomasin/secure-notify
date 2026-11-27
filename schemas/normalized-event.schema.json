@@ -1,0 +1,678 @@
+{
+  "$defs": {
+    "Affected": {
+      "description": "A component affected by an event and the ranges of affected versions.",
+      "properties": {
+        "component": {
+          "$ref": "#/$defs/Component",
+          "description": "The affected component."
+        },
+        "fixed": {
+          "default": [],
+          "description": "Versions that fix the problem.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ranges": {
+          "default": [],
+          "description": "Ranges of affected versions, as OSV-style events.",
+          "items": {
+            "$ref": "#/$defs/Range"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "component"
+      ],
+      "type": "object"
+    },
+    "Breach": {
+      "description": "Breach details.",
+      "properties": {
+        "data_classes": {
+          "default": [],
+          "description": "Classes of exposed data.",
+          "items": {
+            "$ref": "#/$defs/DataClass"
+          },
+          "type": "array"
+        },
+        "disclosed_at": {
+          "description": "When the breach was disclosed.",
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "occurred_at": {
+          "description": "When the breach occurred.",
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "organization": {
+          "description": "Organization ID (`org:...`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "records": {
+          "description": "Number of affected records.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "Component": {
+      "description": "A component: exactly one of `purl` (without version) or `cpe` (CPE 2.3, version `*`).",
+      "properties": {
+        "cpe": {
+          "description": "CPE 2.3 name with the version part as `*`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purl": {
+          "description": "Package URL without version, such as `pkg:npm/lodash`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "Cvss": {
+      "description": "A CVSS score.",
+      "properties": {
+        "score": {
+          "description": "Base score, 0.0 to 10.0.",
+          "format": "double",
+          "type": "number"
+        },
+        "vector": {
+          "description": "Vector string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "CVSS version: `4.0`, `3.1`, `3.0`, or `2.0`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "score"
+      ],
+      "type": "object"
+    },
+    "DataClass": {
+      "description": "Classes of data exposed in a breach.",
+      "enum": [
+        "email",
+        "username",
+        "name",
+        "phone",
+        "address",
+        "date-of-birth",
+        "ip-address",
+        "location",
+        "password",
+        "password-hash",
+        "security-qa",
+        "auth-token",
+        "private-messages",
+        "financial",
+        "payment-card",
+        "government-id",
+        "health",
+        "biometric",
+        "other"
+      ],
+      "type": "string"
+    },
+    "Entities": {
+      "description": "Taxonomy entities (docs/architecture/taxonomy.md).",
+      "properties": {
+        "organizations": {
+          "default": [],
+          "description": "Organization IDs (`org:...`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "products": {
+          "default": [],
+          "description": "Product IDs (`product:...`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "technologies": {
+          "default": [],
+          "description": "Technology IDs (`tech:node`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "vendors": {
+          "default": [],
+          "description": "Vendor IDs (`vendor:...`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Epss": {
+      "description": "An EPSS value.",
+      "properties": {
+        "percentile": {
+          "description": "Percentile, 0.0 to 1.0.",
+          "format": "double",
+          "type": "number"
+        },
+        "score": {
+          "description": "Probability of exploitation, 0.0 to 1.0.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "score",
+        "percentile"
+      ],
+      "type": "object"
+    },
+    "EventKind": {
+      "description": "Event kinds (docs/product/scope.md#event-kinds).",
+      "oneOf": [
+        {
+          "const": "vulnerability",
+          "description": "A security flaw in software or hardware.",
+          "type": "string"
+        },
+        {
+          "const": "exploit",
+          "description": "A public exploit or proof of concept, or a report of active exploitation.",
+          "type": "string"
+        },
+        {
+          "const": "malicious-package",
+          "description": "A package published with malicious code.",
+          "type": "string"
+        },
+        {
+          "const": "release",
+          "description": "A security or breaking release announcement.",
+          "type": "string"
+        },
+        {
+          "const": "bug",
+          "description": "A critical non-security defect.",
+          "type": "string"
+        },
+        {
+          "const": "breach",
+          "description": "A confirmed or credibly reported data breach or leak.",
+          "type": "string"
+        },
+        {
+          "const": "attack",
+          "description": "A security incident without confirmed data exposure.",
+          "type": "string"
+        },
+        {
+          "const": "outage",
+          "description": "A service disruption.",
+          "type": "string"
+        },
+        {
+          "const": "news",
+          "description": "Other relevant security information.",
+          "type": "string"
+        }
+      ]
+    },
+    "Identifiers": {
+      "description": "Strong identifiers of an event.",
+      "properties": {
+        "cve": {
+          "default": [],
+          "description": "CVE IDs (`CVE-2026-1234`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ghsa": {
+          "default": [],
+          "description": "GitHub Security Advisory IDs (`GHSA-xxxx-xxxx-xxxx`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "osv": {
+          "default": [],
+          "description": "OSV IDs that are not CVE or GHSA IDs (`MAL-2026-1`, `PYSEC-2026-1`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "other": {
+          "default": [],
+          "description": "Namespaced IDs (`rustsec:RUSTSEC-2026-0001`, `statuspage:<host>:<incident-id>`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Incident": {
+      "description": "Incident details, used by `attack` and `outage` events.",
+      "properties": {
+        "impact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IncidentImpact"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Impact, when known."
+        },
+        "organization": {
+          "description": "Organization ID (`org:...`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_at": {
+          "default": null,
+          "description": "When the incident was resolved.",
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "description": "When the incident started.",
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/IncidentStatus",
+          "description": "Current status."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "IncidentImpact": {
+      "description": "Incident impact.",
+      "enum": [
+        "none",
+        "minor",
+        "major",
+        "critical"
+      ],
+      "type": "string"
+    },
+    "IncidentStatus": {
+      "description": "Incident status.",
+      "enum": [
+        "investigating",
+        "identified",
+        "monitoring",
+        "resolved",
+        "scheduled"
+      ],
+      "type": "string"
+    },
+    "Range": {
+      "description": "A range of affected versions.",
+      "properties": {
+        "events": {
+          "description": "OSV-style range events, in order.",
+          "items": {
+            "$ref": "#/$defs/RangeEvent"
+          },
+          "type": "array"
+        },
+        "type": {
+          "$ref": "#/$defs/RangeType",
+          "description": "How versions in the range are ordered."
+        }
+      },
+      "required": [
+        "type",
+        "events"
+      ],
+      "type": "object"
+    },
+    "RangeEvent": {
+      "description": "An OSV-style range event.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The version where the problem was introduced (`0` for all earlier versions).",
+          "properties": {
+            "introduced": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "introduced"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The first version that is no longer affected.",
+          "properties": {
+            "fixed": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "fixed"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The last version that is affected.",
+          "properties": {
+            "last_affected": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "last_affected"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An upper limit of the range, not itself affected.",
+          "properties": {
+            "limit": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RangeType": {
+      "description": "Ordering of the versions in a range.",
+      "oneOf": [
+        {
+          "const": "semver",
+          "description": "Semantic versioning.",
+          "type": "string"
+        },
+        {
+          "const": "ecosystem",
+          "description": "Ordering defined by the purl type.",
+          "type": "string"
+        },
+        {
+          "const": "cpe",
+          "description": "Generic version ordering for CPEs.",
+          "type": "string"
+        },
+        {
+          "const": "git",
+          "description": "Git commits; not evaluated against inventories.",
+          "type": "string"
+        }
+      ]
+    },
+    "Severity": {
+      "description": "Severity and exploitation signals.",
+      "properties": {
+        "cvss": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cvss"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "CVSS score."
+        },
+        "epss": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Epss"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "EPSS probability, usually set by an enricher."
+        },
+        "exploit_available": {
+          "default": false,
+          "description": "Whether a public exploit is available.",
+          "type": "boolean"
+        },
+        "exploited": {
+          "default": false,
+          "description": "Whether the vulnerability is known to be exploited.",
+          "type": "boolean"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeverityLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Level; derived when absent (docs/architecture/matching-and-rules.md#severity-normalization)."
+        }
+      },
+      "type": "object"
+    },
+    "SeverityLevel": {
+      "description": "Severity levels.",
+      "oneOf": [
+        {
+          "const": "critical",
+          "description": "Critical.",
+          "type": "string"
+        },
+        {
+          "const": "high",
+          "description": "High.",
+          "type": "string"
+        },
+        {
+          "const": "medium",
+          "description": "Medium.",
+          "type": "string"
+        },
+        {
+          "const": "low",
+          "description": "Low.",
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Not known.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The one shape every source produces, whatever its origin or runtime.",
+  "properties": {
+    "affected": {
+      "default": [],
+      "description": "Affected components and version ranges.",
+      "items": {
+        "$ref": "#/$defs/Affected"
+      },
+      "type": "array"
+    },
+    "breach": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Breach"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Breach details, for `breach` events."
+    },
+    "entities": {
+      "$ref": "#/$defs/Entities",
+      "default": {
+        "organizations": [],
+        "products": [],
+        "technologies": [],
+        "vendors": []
+      },
+      "description": "Taxonomy entities the event concerns."
+    },
+    "identifiers": {
+      "$ref": "#/$defs/Identifiers",
+      "default": {
+        "cve": [],
+        "ghsa": [],
+        "osv": [],
+        "other": []
+      },
+      "description": "Strong identifiers."
+    },
+    "incident": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Incident"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Incident details, for `attack` and `outage` events."
+    },
+    "kind": {
+      "$ref": "#/$defs/EventKind",
+      "description": "Event kind (docs/product/scope.md#event-kinds)."
+    },
+    "links": {
+      "default": [],
+      "description": "Related URLs (`http` or `https`).",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "published_at": {
+      "description": "When the item was first published (RFC 3339, UTC).",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schema_version": {
+      "description": "Schema version this event conforms to. Currently `\"1\"`.",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity",
+      "default": {
+        "epss": null,
+        "exploit_available": false,
+        "exploited": false
+      },
+      "description": "Severity and exploitation signals."
+    },
+    "source": {
+      "description": "Identifier of the source that produced the event.",
+      "type": "string"
+    },
+    "source_item_id": {
+      "description": "Identifier of the item within its source; stable across fetches and unique together with\n`source`.",
+      "type": "string"
+    },
+    "summary": {
+      "description": "Short plain-text summary.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "title": {
+      "description": "Title of the item.",
+      "type": "string"
+    },
+    "updated_at": {
+      "description": "When the item was last updated (RFC 3339, UTC).",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "url": {
+      "description": "Canonical URL of the item (`http` or `https`).",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "source",
+    "source_item_id",
+    "title",
+    "kind"
+  ],
+  "title": "Normalized event",
+  "type": "object"
+}

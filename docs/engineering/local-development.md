@@ -52,6 +52,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 | Command | Purpose |
 |---|---|
 | `cargo xtask ci` | Run locally every check that CI runs on a pull request: formatting, lints, tests, cargo-deny, crate dependencies, license headers, schema, migration, docs, and skills checks. `cargo xtask <check>` runs one check; `cargo xtask` without arguments lists them. |
+| `cargo xtask gen-schemas` | Regenerate the JSON Schemas in `schemas/` from the types in `crates/model` (see [../architecture/data-model.md](../architecture/data-model.md#canonical-schema)). |
 | `cargo run -- run` | Run the instance with the settings in `.env`. |
 | `cargo run --features dev -- dev console` | Run the instance with the [console platform](#console-platform), interactively. |
 | `cargo run --features dev -- dev console --script <file>` | Run a console session from a script, print the transcript, and exit. |

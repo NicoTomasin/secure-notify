@@ -1,3 +1,25 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Canonical types of secure-notify, from which the JSON Schemas are generated.
+//! Canonical types of secure-notify, from which the JSON Schemas in `schemas/` are generated
+//! (docs/architecture/data-model.md#canonical-schema).
+//!
+//! The normalized event is defined once, here. WASM plugins, declarative sources, and the
+//! canonical feed exchange events as JSON validated against the generated schema.
+
+mod event;
+mod validate;
+
+pub use event::{
+    Affected, Breach, Component, Cvss, DataClass, Entities, Epss, EventKind, Identifiers, Incident,
+    IncidentImpact, IncidentStatus, KindFamily, NormalizedEvent, Range, RangeEvent, RangeType,
+    SCHEMA_VERSION, Severity, SeverityLevel,
+};
+pub use validate::{FieldError, ValidationError, parse_event};
+
+/// Generated JSON Schemas: file name in `schemas/` and schema document.
+pub fn json_schemas() -> Vec<(&'static str, serde_json::Value)> {
+    vec![(
+        "normalized-event.schema.json",
+        serde_json::to_value(schemars::schema_for!(NormalizedEvent)).unwrap_or_default(),
+    )]
+}
