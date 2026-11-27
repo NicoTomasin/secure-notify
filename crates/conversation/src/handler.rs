@@ -1,0 +1,342 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Command handling: resolves the chat, checks permissions, runs the command through core
+//! services, and replies with localized messages.
+
+use fluent_bundle::FluentArgs;
+use jiff::Timestamp;
+use secure_notify_core::ports::{InstanceStore, StoreError};
+use secure_notify_core::subscribers::{
+    EndpointRef, Joined, RemoveOutcome, Role, Subscriber, SubscriberId, SubscriberStore,
+    Subscribers,
+};
+
+use crate::commands::{self, Permission};
+use crate::i18n::{I18n, REFERENCE_LANGUAGE};
+use crate::message::{Block, CodeKind, GeneratedCode, Message};
+
+/// Attribution required by the NOTICE file; never translated or removed
+/// (docs/product/licensing.md#source-offer-and-about).
+pub const ATTRIBUTION: &str = concat!(
+    "Based on secure-notify (",
+    env!("CARGO_PKG_REPOSITORY"),
+    ")"
+);
+/// License name shown by `/about`; never translated.
+pub const LICENSE: &str = "AGPL-3.0-or-later";
+
+/// Kind of chat a message comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChatKind {
+    /// A private chat with one person.
+    Private,
+    /// A group or channel.
+    Group,
+}
+
+/// A message received by a platform.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Incoming {
+    /// The chat it came from.
+    pub endpoint: EndpointRef,
+    /// Private or group chat.
+    pub chat_kind: ChatKind,
+    /// The text.
+    pub text: String,
+    /// The client language reported by the platform, if any.
+    pub language_hint: Option<String>,
+}
+
+/// What `/about` shows besides the fixed attribution and license.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct About {
+    /// Running version.
+    pub version: String,
+    /// Source code link (`SOURCE_URL`).
+    pub source_url: String,
+}
+
+/// The conversation layer.
+pub struct Conversation<S> {
+    subscribers: Subscribers<S>,
+    i18n: I18n,
+    about: About,
+}
+
+impl<S: SubscriberStore + InstanceStore> Conversation<S> {
+    /// Creates the conversation layer.
+    pub fn new(subscribers: Subscribers<S>, i18n: I18n, about: About) -> Self {
+        Self {
+            subscribers,
+            i18n,
+            about,
+        }
+    }
+
+    /// The subscriber service.
+    pub fn subscribers(&self) -> &Subscribers<S> {
+        &self.subscribers
+    }
+
+    /// The translations.
+    pub fn i18n(&self) -> &I18n {
+        &self.i18n
+    }
+
+    /// Handles a message and returns the reply to the same chat, if any. Messages from chats that
+    /// are not registered endpoints get no reply, except `/start` with a valid code
+    /// (docs/architecture/subscribers.md#joining-an-instance).
+    pub async fn handle(&self, incoming: &Incoming) -> Option<Message> {
+        match self.try_handle(incoming).await {
+            Ok(reply) => reply,
+            Err(error) => {
+                tracing::error!(error = %error, "command failed");
+                Some(Message::text([self.i18n.text(
+                    REFERENCE_LANGUAGE,
+                    "error-internal",
+                    None,
+                )]))
+            }
+        }
+    }
+
+    async fn try_handle(&self, incoming: &Incoming) -> Result<Option<Message>, StoreError> {
+        // The MVP serves persons in private chats; group chats are not registered endpoints.
+        if incoming.chat_kind != ChatKind::Private {
+            return Ok(None);
+        }
+        let Some(line) = commands::parse(&incoming.text) else {
+            return Ok(None);
+        };
+        let Some(subscriber) = self.subscribers.resolve(&incoming.endpoint).await? else {
+            return self.unregistered(incoming, &line).await;
+        };
+        let language = subscriber.language.clone();
+        let Some(spec) = commands::find(&line.name) else {
+            return Ok(Some(self.say(&language, "error-unknown-command", None)));
+        };
+        if spec.permission == Permission::Admin && subscriber.role != Role::Admin {
+            let mut args = FluentArgs::new();
+            args.set("command", spec.name);
+            return Ok(Some(self.say(
+                &language,
+                "error-permission-denied",
+                Some(&args),
+            )));
+        }
+        let reply = match spec.name {
+            "start" => self.say(&language, "start-already-registered", None),
+            "help" => self.help(&subscriber),
+            "about" => self.about(&language),
+            "language" => self.language(&subscriber, &line.args).await?,
+            "invite" => self.invite(&subscriber).await?,
+            "subscribers" => self.list(&language).await?,
+            "remove" => self.remove(&subscriber, &line.args).await?,
+            _ => self.say(&language, "error-unknown-command", None),
+        };
+        Ok(Some(reply))
+    }
+
+    async fn unregistered(
+        &self,
+        incoming: &Incoming,
+        line: &commands::CommandLine<'_>,
+    ) -> Result<Option<Message>, StoreError> {
+        let (Some(code), "start") = (line.args.first(), line.name.as_str()) else {
+            return Ok(None);
+        };
+        let language = incoming
+            .language_hint
+            .as_deref()
+            .and_then(|hint| self.i18n.match_language(hint))
+            .unwrap_or(REFERENCE_LANGUAGE)
+            .to_string();
+        match self
+            .subscribers
+            .join(code, &incoming.endpoint, &language)
+            .await?
+        {
+            Joined::InvalidCode => Ok(None),
+            Joined::Joined(subscriber) => {
+                let greeting = match subscriber.role {
+                    Role::Admin => "start-admin",
+                    Role::Member => "start-member",
+                };
+                Ok(Some(Message::text([
+                    self.i18n.text(&language, greeting, None),
+                    self.i18n.text(&language, "onboarding", None),
+                ])))
+            }
+        }
+    }
+
+    fn say(&self, language: &str, key: &str, args: Option<&FluentArgs<'_>>) -> Message {
+        Message::text([self.i18n.text(language, key, args)])
+    }
+
+    fn help(&self, subscriber: &Subscriber) -> Message {
+        let language = &subscriber.language;
+        let mut blocks = vec![Block::Heading(self.i18n.text(
+            language,
+            "help-header",
+            None,
+        ))];
+        for spec in commands::COMMANDS {
+            let allowed = match spec.permission {
+                Permission::Anyone => false,
+                Permission::Subscriber => true,
+                Permission::Admin => subscriber.role == Role::Admin,
+            };
+            if allowed {
+                let mut args = FluentArgs::new();
+                args.set("command", spec.name);
+                args.set(
+                    "description",
+                    self.i18n.text(language, spec.description, None),
+                );
+                blocks.push(Block::Item(self.i18n.text(
+                    language,
+                    "help-line",
+                    Some(&args),
+                )));
+            }
+        }
+        Message {
+            blocks,
+            ..Message::default()
+        }
+    }
+
+    fn about(&self, language: &str) -> Message {
+        let mut version = FluentArgs::new();
+        version.set("version", self.about.version.clone());
+        let mut license = FluentArgs::new();
+        license.set("license", LICENSE);
+        let mut source = FluentArgs::new();
+        source.set("url", self.about.source_url.clone());
+        Message::text([
+            ATTRIBUTION.to_string(),
+            self.i18n.text(language, "about-license", Some(&license)),
+            self.i18n.text(language, "about-version", Some(&version)),
+            self.i18n.text(language, "about-source", Some(&source)),
+        ])
+    }
+
+    fn language_names(&self) -> String {
+        self.i18n
+            .languages()
+            .into_iter()
+            .map(|code| format!("{} ({code})", self.i18n.text(code, "language-name", None)))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    async fn language(
+        &self,
+        subscriber: &Subscriber,
+        args: &[&str],
+    ) -> Result<Message, StoreError> {
+        let current = &subscriber.language;
+        let available = self.language_names();
+        let Some(requested) = args.first() else {
+            let mut values = FluentArgs::new();
+            values.set("language", self.i18n.text(current, "language-name", None));
+            values.set("available", available);
+            return Ok(Message::text([
+                self.i18n.text(current, "language-current", Some(&values)),
+                self.i18n.text(current, "language-usage", None),
+            ]));
+        };
+        let requested = requested.to_ascii_lowercase();
+        if !self.i18n.languages().contains(&requested.as_str()) {
+            let mut values = FluentArgs::new();
+            values.set("code", requested);
+            values.set("available", available);
+            return Ok(self.say(current, "language-unknown", Some(&values)));
+        }
+        self.subscribers
+            .set_language(subscriber.id, &requested)
+            .await?;
+        let mut values = FluentArgs::new();
+        values.set(
+            "language",
+            self.i18n.text(&requested, "language-name", None),
+        );
+        Ok(self.say(&requested, "language-changed", Some(&values)))
+    }
+
+    async fn invite(&self, admin: &Subscriber) -> Result<Message, StoreError> {
+        let (code, expires) = self.subscribers.create_invite(admin.id).await?;
+        let language = &admin.language;
+        let mut values = FluentArgs::new();
+        values.set("code", code.clone());
+        values.set("expires", format_time(expires));
+        let mut message = Message::text([
+            self.i18n.text(language, "invite-created", Some(&values)),
+            self.i18n
+                .text(language, "invite-instructions", Some(&values)),
+        ]);
+        message.generated_code = Some(GeneratedCode {
+            kind: CodeKind::Invite,
+            value: code,
+        });
+        Ok(message)
+    }
+
+    async fn list(&self, language: &str) -> Result<Message, StoreError> {
+        let all = self.subscribers.list().await?;
+        let mut count = FluentArgs::new();
+        count.set("count", all.len());
+        let mut blocks = vec![Block::Heading(self.i18n.text(
+            language,
+            "subscribers-header",
+            Some(&count),
+        ))];
+        for summary in all {
+            let s = &summary.subscriber;
+            let role_key = match s.role {
+                Role::Admin => "role-admin",
+                Role::Member => "role-member",
+            };
+            let mut values = FluentArgs::new();
+            values.set("id", s.id.0);
+            values.set("role", self.i18n.text(language, role_key, None));
+            values.set("language", s.language.clone());
+            values.set("since", s.created_at.strftime("%Y-%m-%d").to_string());
+            values.set("active", if summary.active { "yes" } else { "no" });
+            blocks.push(Block::Item(self.i18n.text(
+                language,
+                "subscribers-line",
+                Some(&values),
+            )));
+        }
+        Ok(Message {
+            blocks,
+            ..Message::default()
+        })
+    }
+
+    async fn remove(&self, admin: &Subscriber, args: &[&str]) -> Result<Message, StoreError> {
+        let language = &admin.language;
+        let Some(id) = args
+            .first()
+            .map(|a| a.trim_start_matches('#'))
+            .and_then(|a| a.parse::<i64>().ok())
+        else {
+            return Ok(self.say(language, "remove-usage", None));
+        };
+        let mut values = FluentArgs::new();
+        values.set("id", id);
+        let key = match self.subscribers.remove(admin.id, SubscriberId(id)).await? {
+            RemoveOutcome::Removed => "remove-done",
+            RemoveOutcome::NotFound => "remove-not-found",
+            RemoveOutcome::IsSelf => "remove-self",
+        };
+        Ok(self.say(language, key, Some(&values)))
+    }
+}
+
+/// Times shown to subscribers; the MVP shows UTC.
+fn format_time(timestamp: Timestamp) -> String {
+    timestamp.strftime("%Y-%m-%d %H:%M UTC").to_string()
+}

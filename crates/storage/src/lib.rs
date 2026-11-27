@@ -10,6 +10,8 @@
 mod database;
 mod instance;
 mod migrations;
+mod subscribers;
+mod time;
 
 use std::path::PathBuf;
 

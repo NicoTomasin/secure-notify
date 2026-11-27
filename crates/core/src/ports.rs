@@ -140,3 +140,10 @@ pub trait Platform: Send + Sync {
         message: &Self::Message,
     ) -> impl Future<Output = Result<(), SendError>> + Send;
 }
+
+/// A cryptographically secure random source, for pairing, invite, and link codes
+/// (docs/architecture/subscribers.md).
+pub trait Random: Send + Sync {
+    /// Fills `buf` with random bytes.
+    fn fill(&self, buf: &mut [u8]);
+}

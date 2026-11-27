@@ -8,6 +8,7 @@
 
 pub mod ports;
 pub mod secret;
+pub mod subscribers;
 pub mod time;
 
 pub use secret::Secret;
