@@ -9,6 +9,7 @@
 
 mod database;
 mod instance;
+mod inventory;
 mod migrations;
 mod subscribers;
 mod time;

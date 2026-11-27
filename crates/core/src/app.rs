@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use crate::inventory::{Inventory, InventoryStore, Parser};
 use crate::ports::{Clock, InstanceStore, Random};
 use crate::subscribers::{SubscriberStore, Subscribers};
 use crate::taxonomy::Taxonomy;
@@ -11,12 +12,19 @@ use crate::watches::{WatchStore, Watches};
 
 /// Everything the core needs from storage.
 pub trait Store:
-    SubscriberStore + InstanceStore + WatchStore + Clone + Send + Sync + 'static
+    SubscriberStore + InstanceStore + WatchStore + InventoryStore + Clone + Send + Sync + 'static
 {
 }
 
 impl<T> Store for T where
-    T: SubscriberStore + InstanceStore + WatchStore + Clone + Send + Sync + 'static
+    T: SubscriberStore
+        + InstanceStore
+        + WatchStore
+        + InventoryStore
+        + Clone
+        + Send
+        + Sync
+        + 'static
 {
 }
 
@@ -26,6 +34,8 @@ pub struct Core<S> {
     pub subscribers: Subscribers<S>,
     /// Watched entities.
     pub watches: Watches<S>,
+    /// Inventories and uploads.
+    pub inventory: Inventory<S>,
 }
 
 impl<S: Store> Core<S> {
@@ -35,9 +45,11 @@ impl<S: Store> Core<S> {
         taxonomy: Arc<Taxonomy>,
         clock: Arc<dyn Clock>,
         random: Arc<dyn Random>,
+        parsers: Arc<[Arc<dyn Parser>]>,
     ) -> Self {
         Self {
             subscribers: Subscribers::new(store.clone(), clock.clone(), random),
+            inventory: Inventory::new(store.clone(), parsers, taxonomy.clone(), clock.clone()),
             watches: Watches::new(store, taxonomy, clock),
         }
     }

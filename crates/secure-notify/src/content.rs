@@ -54,3 +54,34 @@ pub(crate) fn verify(dir: &Path) -> Result<usize, String> {
     Taxonomy::load(&taxonomy).map_err(|problems| problems.join("\n"))?;
     Ok(files.len())
 }
+
+/// Validates every `plugins/<kind>/<id>/plugin.toml` under `dir`. Returns how many were checked.
+pub(crate) fn verify_manifests(dir: &Path) -> Result<usize, String> {
+    let mut problems = Vec::new();
+    let mut count = 0;
+    let kinds = std::fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    for kind in kinds.flatten().filter(|e| e.path().is_dir()) {
+        let directory = kind.file_name().to_string_lossy().into_owned();
+        let plugins = std::fs::read_dir(kind.path()).map_err(|e| format!("{directory}: {e}"))?;
+        for plugin in plugins.flatten().filter(|e| e.path().is_dir()) {
+            let name = plugin.file_name().to_string_lossy().into_owned();
+            let path = plugin.path().join("plugin.toml");
+            let shown = format!("plugins/{directory}/{name}/plugin.toml");
+            match std::fs::read_to_string(&path) {
+                Ok(text) => {
+                    count += 1;
+                    if let Err(found) = secure_notify_model::load_manifest(&directory, &name, &text)
+                    {
+                        problems.extend(found.into_iter().map(|p| format!("{shown}: {p}")));
+                    }
+                }
+                Err(_) => problems.push(format!("{shown} is missing")),
+            }
+        }
+    }
+    if problems.is_empty() {
+        Ok(count)
+    } else {
+        Err(problems.join("\n"))
+    }
+}

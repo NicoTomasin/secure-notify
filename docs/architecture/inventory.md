@@ -69,6 +69,16 @@ uses locally mirrored data, so the inventory never leaves the instance.
    including backfilled stories, and a single report is sent. The stories in that report are
    recorded in the delivery ledger, so they are not sent again later as new.
 
+Limits, enforced by the core: files larger than 20 MB are refused before parsing; a parser runs
+off the async executor and is abandoned after 10 seconds; a file that yields more than 100,000
+components is refused. Parsers also bound nesting depth and YAML alias expansion.
+
+Derived technologies are the ones a parser reports for the file (the package manager of a lock
+file, `tech:javascript` for every JavaScript file, `tech:node` when `package.json` declares
+`engines.node`) plus the entities the taxonomy maps exactly to the uploaded components' purls (see
+[taxonomy.md](taxonomy.md#tagging)). `package.json` yields components without version; the root
+package of a lock file (the project itself) is never an entry.
+
 ### Initial scan before the first synchronization
 
 > Status: `Decided`

@@ -7,6 +7,7 @@
 //! outside world; other crates implement them and only the binary wires them together.
 
 pub mod app;
+pub mod inventory;
 pub mod ports;
 pub mod secret;
 pub mod subscribers;

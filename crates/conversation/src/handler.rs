@@ -6,6 +6,7 @@
 use fluent_bundle::FluentArgs;
 use jiff::Timestamp;
 use secure_notify_core::app::{Core, Store};
+use secure_notify_core::inventory::{AddOutcome, MAX_COMPONENTS, MAX_UPLOAD_BYTES, UploadOutcome};
 use secure_notify_core::ports::StoreError;
 use secure_notify_core::subscribers::{
     EndpointRef, Joined, RemoveOutcome, Role, Subscriber, SubscriberId, Subscribers,
@@ -46,6 +47,25 @@ pub struct Incoming {
     pub text: String,
     /// The client language reported by the platform, if any.
     pub language_hint: Option<String>,
+    /// A file sent with the message.
+    pub attachment: Option<Attachment>,
+}
+
+/// A file sent with a message. It is parsed in memory and dropped
+/// (docs/architecture/inventory.md#privacy).
+#[derive(Clone, PartialEq, Eq)]
+pub struct Attachment {
+    /// File name as sent.
+    pub filename: String,
+    /// Content.
+    pub bytes: Vec<u8>,
+}
+
+impl std::fmt::Debug for Attachment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Never print file content.
+        write!(f, "Attachment({} bytes)", self.bytes.len())
+    }
 }
 
 /// What `/about` shows besides the fixed attribution and license.
@@ -107,10 +127,14 @@ impl<S: Store> Conversation<S> {
         if incoming.chat_kind != ChatKind::Private {
             return Ok(None);
         }
+        let resolved = self.core.subscribers.resolve(&incoming.endpoint).await?;
+        if let (Some(subscriber), Some(attachment)) = (&resolved, &incoming.attachment) {
+            return Ok(Some(self.upload(subscriber, attachment).await?));
+        }
         let Some(line) = commands::parse(&incoming.text) else {
             return Ok(None);
         };
-        let Some(subscriber) = self.core.subscribers.resolve(&incoming.endpoint).await? else {
+        let Some(subscriber) = resolved else {
             return self.unregistered(incoming, &line).await;
         };
         let language = subscriber.language.clone();
@@ -131,6 +155,8 @@ impl<S: Store> Conversation<S> {
             "help" => self.help(&subscriber),
             "about" => self.about(&language),
             "language" => self.language(&subscriber, &line.args).await?,
+            "upload" => self.upload_prompt(&language),
+            "inventory" => self.inventory(&subscriber, &line.args).await?,
             "watch" => self.watch(&subscriber, &line.args.join(" ")).await?,
             "unwatch" => self.unwatch(&subscriber, &line.args.join(" ")).await?,
             "watching" => self.watching(&subscriber).await?,
@@ -270,6 +296,153 @@ impl<S: Store> Conversation<S> {
             self.i18n.text(&requested, "language-name", None),
         );
         Ok(self.say(&requested, "language-changed", Some(&values)))
+    }
+
+    fn upload_prompt(&self, language: &str) -> Message {
+        let mut values = FluentArgs::new();
+        values.set("files", self.core.inventory.supported_files().join(", "));
+        self.say(language, "upload-prompt", Some(&values))
+    }
+
+    async fn upload(
+        &self,
+        subscriber: &Subscriber,
+        attachment: &Attachment,
+    ) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let outcome = self
+            .core
+            .inventory
+            .upload(
+                subscriber.id,
+                &self.core.watches,
+                &attachment.filename,
+                attachment.bytes.clone(),
+            )
+            .await?;
+        let mut values = FluentArgs::new();
+        values.set("file", attachment.filename.clone());
+        values.set("files", self.core.inventory.supported_files().join(", "));
+        let key = match outcome {
+            UploadOutcome::Merged {
+                counts,
+                technologies,
+                ..
+            } => {
+                values.set("added", counts.added);
+                values.set("refreshed", counts.refreshed);
+                let mut lines = vec![self.i18n.text(language, "upload-done", Some(&values))];
+                if !technologies.is_empty() {
+                    let names: Vec<String> = technologies
+                        .iter()
+                        .map(|id| {
+                            self.core
+                                .watches
+                                .taxonomy()
+                                .get(id)
+                                .map_or_else(|| id.clone(), |e| e.name.clone())
+                        })
+                        .collect();
+                    let mut tech = FluentArgs::new();
+                    tech.set("technologies", names.join(", "));
+                    lines.push(self.i18n.text(language, "upload-technologies", Some(&tech)));
+                }
+                return Ok(Message::text(lines));
+            }
+            UploadOutcome::Unsupported => "upload-unsupported",
+            UploadOutcome::TooLarge => {
+                values.set("limit", MAX_UPLOAD_BYTES / (1024 * 1024));
+                "upload-too-large"
+            }
+            UploadOutcome::TooManyComponents => {
+                values.set("limit", MAX_COMPONENTS);
+                "upload-too-many"
+            }
+            UploadOutcome::TimedOut => "upload-timeout",
+            UploadOutcome::Malformed => "upload-malformed",
+            UploadOutcome::BunBinaryLockfile => "upload-bun-binary",
+        };
+        Ok(self.say(language, key, Some(&values)))
+    }
+
+    async fn inventory(
+        &self,
+        subscriber: &Subscriber,
+        args: &[&str],
+    ) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let inventory = &self.core.inventory;
+        let mut values = FluentArgs::new();
+        let key = match args {
+            [] => return self.inventory_list(subscriber).await,
+            ["add", component] | ["add", component, _] => {
+                let version = args.get(2).copied();
+                values.set("component", (*component).to_string());
+                values.set(
+                    "version",
+                    version.map_or_else(
+                        || self.i18n.text(language, "inventory-no-version", None),
+                        str::to_string,
+                    ),
+                );
+                match inventory.add(subscriber.id, component, version).await? {
+                    AddOutcome::Added => "inventory-added",
+                    AddOutcome::InvalidComponent(_) => "inventory-invalid",
+                }
+            }
+            ["remove", spec] => {
+                values.set("count", inventory.remove(subscriber.id, spec).await?);
+                "inventory-removed"
+            }
+            ["clear"] => {
+                values.set("count", inventory.clear(subscriber.id).await?);
+                "inventory-cleared"
+            }
+            _ => "inventory-usage",
+        };
+        Ok(self.say(language, key, Some(&values)))
+    }
+
+    async fn inventory_list(&self, subscriber: &Subscriber) -> Result<Message, StoreError> {
+        /// Entries shown in one reply.
+        const SHOWN: usize = 50;
+        let language = &subscriber.language;
+        let entries = self.core.inventory.list(subscriber.id).await?;
+        if entries.is_empty() {
+            return Ok(self.say(language, "inventory-empty", None));
+        }
+        let mut count = FluentArgs::new();
+        count.set("count", entries.len());
+        let mut blocks = vec![Block::Heading(self.i18n.text(
+            language,
+            "inventory-header",
+            Some(&count),
+        ))];
+        for entry in entries.iter().take(SHOWN) {
+            let version = entry
+                .version
+                .clone()
+                .unwrap_or_else(|| self.i18n.text(language, "inventory-no-version", None));
+            blocks.push(Block::Item(format!("{} {version}", entry.component)));
+        }
+        if entries.len() > SHOWN {
+            let mut more = FluentArgs::new();
+            more.set("count", entries.len() - SHOWN);
+            blocks.push(Block::Text(self.i18n.text(
+                language,
+                "inventory-more",
+                Some(&more),
+            )));
+        }
+        blocks.push(Block::Text(self.i18n.text(
+            language,
+            "inventory-usage",
+            None,
+        )));
+        Ok(Message {
+            blocks,
+            ..Message::default()
+        })
     }
 
     fn catalog(&self) -> String {

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[package]
+name = "secure-notify-parser-npm"
+description = "Parser plugin for npm files."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+secure-notify-core = { workspace = true }
+secure-notify-model = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

@@ -55,6 +55,9 @@ enum ContentCommand {
         /// Content directory.
         #[arg(long, default_value = "content")]
         dir: PathBuf,
+        /// Plugins directory, whose manifests are checked too.
+        #[arg(long, default_value = "plugins")]
+        plugins: PathBuf,
     },
 }
 
@@ -143,9 +146,14 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
             tracing::info!(path = %path.display(), "backup written");
             Ok(())
         }
-        Command::Content(ContentCommand::Verify { dir }) => {
+        Command::Content(ContentCommand::Verify { dir, plugins }) => {
             let count = content::verify(&dir)?;
-            tracing::info!(files = count, dir = %dir.display(), "content is valid");
+            let manifests = content::verify_manifests(&plugins)?;
+            tracing::info!(
+                files = count,
+                manifests,
+                "content and plugin manifests are valid"
+            );
             Ok(())
         }
         #[cfg(feature = "dev")]

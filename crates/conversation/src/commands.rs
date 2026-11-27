@@ -55,6 +55,18 @@ pub const COMMANDS: &[CommandSpec] = &[
         description: "command-about",
     },
     CommandSpec {
+        name: "upload",
+        permission: Permission::Subscriber,
+        availability: Availability::Private,
+        description: "command-upload",
+    },
+    CommandSpec {
+        name: "inventory",
+        permission: Permission::Subscriber,
+        availability: Availability::Private,
+        description: "command-inventory",
+    },
+    CommandSpec {
         name: "watch",
         permission: Permission::Subscriber,
         availability: Availability::Private,

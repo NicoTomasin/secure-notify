@@ -8,6 +8,8 @@ language-name = Español
 command-start = Unirte a esta instancia con un código
 command-help = Ver los comandos que podés usar
 command-about = Licencia, versión y código fuente
+command-upload = Cómo mandar un manifiesto o lockfile
+command-inventory = Ver, agregar o quitar entradas del inventario
 command-watch = Seguir una tecnología
 command-unwatch = Dejar de seguir algo
 command-watching = Ver lo que seguís
@@ -35,6 +37,36 @@ help-line = /{ $command } — { $description }
 about-version = Versión: { $version }
 about-license = Licencia: { $license }
 about-source = Código fuente: { $url }
+
+## /upload and uploads
+
+upload-prompt = Mandá uno de estos archivos en este chat: { $files }. Se lee una vez y nunca se guarda; solo se conservan nombres de componentes y versiones.
+upload-done = Inventario actualizado con { $file }: { $added } nuevos, { $refreshed } ya conocidos.
+upload-technologies = Tecnologías detectadas, ahora seguidas: { $technologies }.
+upload-unsupported = No puedo leer { $file }. Archivos soportados: { $files }.
+upload-too-large = El archivo pesa más de { $limit } MB.
+upload-too-many = El archivo lista más de { $limit } componentes.
+upload-timeout = Leer el archivo tardó demasiado. Probá con uno más chico.
+upload-malformed = No se pudo leer { $file }; no parece un archivo válido de su tipo.
+upload-bun-binary = El lockfile binario de Bun (bun.lockb) no está soportado. Bun 1.2 o posterior escribe el lockfile de texto bun.lock; con versiones anteriores corré “bun install --save-text-lockfile”. Después mandá bun.lock.
+
+## /inventory
+
+inventory-empty = Tu inventario está vacío. Mandá un lockfile o usá /inventory add <purl> <versión>.
+inventory-header = { $count ->
+    [one] Una entrada:
+   *[other] { $count } entradas:
+}
+inventory-no-version = (sin versión)
+inventory-more = …y { $count } más.
+inventory-usage = Usá /inventory add <purl> [versión], /inventory remove <purl>[@versión] o /inventory clear.
+inventory-added = Agregado { $component } { $version }.
+inventory-invalid = “{ $component }” no es un package URL como pkg:npm/lodash.
+inventory-removed = { $count ->
+    [one] Se quitó una entrada.
+   *[other] Se quitaron { $count } entradas.
+}
+inventory-cleared = Se vació tu inventario ({ $count } entradas quitadas).
 
 ## /watch, /unwatch, /watching
 

@@ -8,6 +8,8 @@
 
 mod content;
 mod event;
+mod manifest;
+mod purl;
 mod validate;
 
 pub use content::{Mappings, TaxonomyEntity, load_taxonomy, normalize_text};
@@ -16,6 +18,8 @@ pub use event::{
     IncidentImpact, IncidentStatus, KindFamily, NormalizedEvent, Range, RangeEvent, RangeType,
     SCHEMA_VERSION, Severity, SeverityLevel,
 };
+pub use manifest::{Capabilities, PluginKind, PluginManifest, PluginRuntime, load_manifest};
+pub use purl::{npm_purl, validate_purl};
 pub use validate::{FieldError, ValidationError, parse_event};
 
 /// Generated JSON Schemas: file name in `schemas/` and schema document.
@@ -24,6 +28,10 @@ pub fn json_schemas() -> Vec<(&'static str, serde_json::Value)> {
         (
             "normalized-event.schema.json",
             serde_json::to_value(schemars::schema_for!(NormalizedEvent)).unwrap_or_default(),
+        ),
+        (
+            "plugin-manifest.schema.json",
+            serde_json::to_value(schemars::schema_for!(PluginManifest)).unwrap_or_default(),
         ),
         (
             "taxonomy-entity.schema.json",

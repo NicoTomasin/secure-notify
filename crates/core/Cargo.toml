@@ -20,3 +20,5 @@ serde_json = { workspace = true }
 jiff = { workspace = true }
 secure-notify-model = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "time"] }
+tracing = { workspace = true }
