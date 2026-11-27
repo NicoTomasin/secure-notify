@@ -13,6 +13,7 @@ mod deps;
 mod docs;
 mod headers;
 mod markdown;
+mod schemas;
 mod skills;
 
 use std::path::{Path, PathBuf};
@@ -60,6 +61,11 @@ const CHECKS: &[Check] = &[
         run: deps::check,
     },
     Check {
+        name: "schemas",
+        about: "generated JSON Schemas are current",
+        run: schemas::check,
+    },
+    Check {
         name: "headers",
         about: "SPDX license headers",
         run: headers::check,
@@ -81,6 +87,13 @@ fn main() -> ExitCode {
     let root = workspace_root();
     match args.first().map(String::as_str) {
         Some("ci") => run_checks(&root, CHECKS.iter().collect()),
+        Some("gen-schemas") => match schemas::generate(&root) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(problem) => {
+                eprintln!("{problem}");
+                ExitCode::FAILURE
+            }
+        },
         Some(name) if CHECKS.iter().any(|c| c.name == name) => {
             run_checks(&root, CHECKS.iter().filter(|c| c.name == name).collect())
         }
@@ -96,6 +109,11 @@ fn print_usage() {
     for check in CHECKS {
         eprintln!("  {:<11} {}", check.name, check.about);
     }
+    eprintln!(
+        "
+generators:
+  gen-schemas write the JSON Schemas in schemas/ from crates/model"
+    );
 }
 
 fn run_checks(root: &Path, checks: Vec<&Check>) -> ExitCode {

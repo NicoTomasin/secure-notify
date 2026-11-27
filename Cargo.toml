@@ -26,6 +26,14 @@ repository = "https://github.com/NicoTomasin/secure-notify"
 publish = false
 
 [workspace.dependencies]
+# Workspace crates
+secure-notify-model = { path = "crates/model" }
+
+# Third-party crates
+jiff = { version = "0.2", default-features = false, features = ["std", "serde"] }
+schemars = { version = "1", default-features = false, features = ["std", "derive", "jiff02"] }
+serde = { version = "1", default-features = false, features = ["std", "derive"] }
+thiserror = { version = "2", default-features = false, features = ["std"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
 
 [workspace.lints.rust]
@@ -39,6 +47,8 @@ module_name_repetitions = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 must_use_candidate = "allow"
+too_many_lines = "allow"
+semicolon_if_nothing_returned = "allow"
 unwrap_used = "warn"
 expect_used = "warn"
 dbg_macro = "warn"
