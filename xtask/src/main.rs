@@ -9,6 +9,7 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
 mod cargo;
+mod content;
 mod deps;
 mod docs;
 mod headers;
@@ -70,6 +71,11 @@ const CHECKS: &[Check] = &[
         name: "migrations",
         about: "migration names and sequence numbers",
         run: migrations::check,
+    },
+    Check {
+        name: "content",
+        about: "content files and taxonomy rules",
+        run: content::check,
     },
     Check {
         name: "headers",

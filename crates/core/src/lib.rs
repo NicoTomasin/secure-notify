@@ -6,9 +6,12 @@
 //! The core holds the domain logic and defines traits ([`ports`]) for everything it needs from the
 //! outside world; other crates implement them and only the binary wires them together.
 
+pub mod app;
 pub mod ports;
 pub mod secret;
 pub mod subscribers;
+pub mod taxonomy;
 pub mod time;
+pub mod watches;
 
 pub use secret::Secret;

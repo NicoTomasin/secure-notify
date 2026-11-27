@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# The Bun runtime publishes its advisories for the npm package `bun`. The word "bun" alone is
+# ambiguous, so it is not a keyword.
+
+id = "tech:bun"
+name = "Bun"
+parent = "tech:javascript"
+aliases = ["Bun runtime"]
+
+[mappings]
+purl = ["pkg:npm/bun"]

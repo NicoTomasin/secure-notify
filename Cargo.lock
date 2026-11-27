@@ -491,6 +491,7 @@ dependencies = [
  "jiff",
  "secure-notify-conversation",
  "secure-notify-core",
+ "secure-notify-model",
  "secure-notify-storage",
  "serde",
  "tempfile",
@@ -518,6 +519,8 @@ name = "secure-notify-core"
 version = "0.0.0"
 dependencies = [
  "jiff",
+ "secure-notify-model",
+ "serde_json",
  "thiserror",
 ]
 
@@ -534,6 +537,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "toml",
 ]
 
 [[package]]

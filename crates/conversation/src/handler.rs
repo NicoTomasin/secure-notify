@@ -5,11 +5,12 @@
 
 use fluent_bundle::FluentArgs;
 use jiff::Timestamp;
-use secure_notify_core::ports::{InstanceStore, StoreError};
+use secure_notify_core::app::{Core, Store};
+use secure_notify_core::ports::StoreError;
 use secure_notify_core::subscribers::{
-    EndpointRef, Joined, RemoveOutcome, Role, Subscriber, SubscriberId, SubscriberStore,
-    Subscribers,
+    EndpointRef, Joined, RemoveOutcome, Role, Subscriber, SubscriberId, Subscribers,
 };
+use secure_notify_core::watches::{UnwatchOutcome, WatchOrigin, WatchOutcome};
 
 use crate::commands::{self, Permission};
 use crate::i18n::{I18n, REFERENCE_LANGUAGE};
@@ -58,24 +59,25 @@ pub struct About {
 
 /// The conversation layer.
 pub struct Conversation<S> {
-    subscribers: Subscribers<S>,
+    core: Core<S>,
     i18n: I18n,
     about: About,
 }
 
-impl<S: SubscriberStore + InstanceStore> Conversation<S> {
+impl<S: Store> Conversation<S> {
     /// Creates the conversation layer.
-    pub fn new(subscribers: Subscribers<S>, i18n: I18n, about: About) -> Self {
-        Self {
-            subscribers,
-            i18n,
-            about,
-        }
+    pub fn new(core: Core<S>, i18n: I18n, about: About) -> Self {
+        Self { core, i18n, about }
+    }
+
+    /// The core services.
+    pub fn core(&self) -> &Core<S> {
+        &self.core
     }
 
     /// The subscriber service.
     pub fn subscribers(&self) -> &Subscribers<S> {
-        &self.subscribers
+        &self.core.subscribers
     }
 
     /// The translations.
@@ -108,7 +110,7 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
         let Some(line) = commands::parse(&incoming.text) else {
             return Ok(None);
         };
-        let Some(subscriber) = self.subscribers.resolve(&incoming.endpoint).await? else {
+        let Some(subscriber) = self.core.subscribers.resolve(&incoming.endpoint).await? else {
             return self.unregistered(incoming, &line).await;
         };
         let language = subscriber.language.clone();
@@ -129,6 +131,9 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
             "help" => self.help(&subscriber),
             "about" => self.about(&language),
             "language" => self.language(&subscriber, &line.args).await?,
+            "watch" => self.watch(&subscriber, &line.args.join(" ")).await?,
+            "unwatch" => self.unwatch(&subscriber, &line.args.join(" ")).await?,
+            "watching" => self.watching(&subscriber).await?,
             "invite" => self.invite(&subscriber).await?,
             "subscribers" => self.list(&language).await?,
             "remove" => self.remove(&subscriber, &line.args).await?,
@@ -152,6 +157,7 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
             .unwrap_or(REFERENCE_LANGUAGE)
             .to_string();
         match self
+            .core
             .subscribers
             .join(code, &incoming.endpoint, &language)
             .await?
@@ -254,7 +260,8 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
             values.set("available", available);
             return Ok(self.say(current, "language-unknown", Some(&values)));
         }
-        self.subscribers
+        self.core
+            .subscribers
             .set_language(subscriber.id, &requested)
             .await?;
         let mut values = FluentArgs::new();
@@ -265,8 +272,100 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
         Ok(self.say(&requested, "language-changed", Some(&values)))
     }
 
+    fn catalog(&self) -> String {
+        self.core
+            .watches
+            .taxonomy()
+            .entities()
+            .map(|e| e.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    async fn watch(&self, subscriber: &Subscriber, query: &str) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let mut values = FluentArgs::new();
+        values.set("available", self.catalog());
+        if query.is_empty() {
+            return Ok(self.say(language, "watch-usage", Some(&values)));
+        }
+        let key = match self.core.watches.watch(subscriber.id, query).await? {
+            WatchOutcome::Added(entity) => {
+                values.set("name", entity.name);
+                "watch-added"
+            }
+            WatchOutcome::AlreadyWatched(entity) => {
+                values.set("name", entity.name);
+                "watch-already"
+            }
+            WatchOutcome::Unknown => {
+                values.set("query", query.to_string());
+                "watch-unknown"
+            }
+        };
+        Ok(self.say(language, key, Some(&values)))
+    }
+
+    async fn unwatch(&self, subscriber: &Subscriber, query: &str) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let mut values = FluentArgs::new();
+        values.set("available", self.catalog());
+        if query.is_empty() {
+            return Ok(self.say(language, "unwatch-usage", None));
+        }
+        let key = match self.core.watches.unwatch(subscriber.id, query).await? {
+            UnwatchOutcome::Removed(entity) => {
+                values.set("name", entity.name);
+                "unwatch-removed"
+            }
+            UnwatchOutcome::NotWatched(entity) => {
+                values.set("name", entity.name);
+                "unwatch-not-watched"
+            }
+            UnwatchOutcome::Unknown => {
+                values.set("query", query.to_string());
+                "watch-unknown"
+            }
+        };
+        Ok(self.say(language, key, Some(&values)))
+    }
+
+    async fn watching(&self, subscriber: &Subscriber) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let watches = self.core.watches.list(subscriber.id).await?;
+        if watches.is_empty() {
+            return Ok(self.say(language, "watching-none", None));
+        }
+        let mut blocks = vec![Block::Heading(self.i18n.text(
+            language,
+            "watching-header",
+            None,
+        ))];
+        for (id, name, origin) in watches {
+            let mut values = FluentArgs::new();
+            values.set("id", id);
+            values.set("name", name);
+            values.set(
+                "origin",
+                match origin {
+                    WatchOrigin::Manual => "manual",
+                    WatchOrigin::Derived => "derived",
+                },
+            );
+            blocks.push(Block::Item(self.i18n.text(
+                language,
+                "watching-line",
+                Some(&values),
+            )));
+        }
+        Ok(Message {
+            blocks,
+            ..Message::default()
+        })
+    }
+
     async fn invite(&self, admin: &Subscriber) -> Result<Message, StoreError> {
-        let (code, expires) = self.subscribers.create_invite(admin.id).await?;
+        let (code, expires) = self.core.subscribers.create_invite(admin.id).await?;
         let language = &admin.language;
         let mut values = FluentArgs::new();
         values.set("code", code.clone());
@@ -284,7 +383,7 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
     }
 
     async fn list(&self, language: &str) -> Result<Message, StoreError> {
-        let all = self.subscribers.list().await?;
+        let all = self.core.subscribers.list().await?;
         let mut count = FluentArgs::new();
         count.set("count", all.len());
         let mut blocks = vec![Block::Heading(self.i18n.text(
@@ -327,7 +426,12 @@ impl<S: SubscriberStore + InstanceStore> Conversation<S> {
         };
         let mut values = FluentArgs::new();
         values.set("id", id);
-        let key = match self.subscribers.remove(admin.id, SubscriberId(id)).await? {
+        let key = match self
+            .core
+            .subscribers
+            .remove(admin.id, SubscriberId(id))
+            .await?
+        {
             RemoveOutcome::Removed => "remove-done",
             RemoveOutcome::NotFound => "remove-not-found",
             RemoveOutcome::IsSelf => "remove-self",

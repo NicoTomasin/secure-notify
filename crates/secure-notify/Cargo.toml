@@ -33,4 +33,5 @@ secure-notify-storage = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "io-std", "io-util", "fs"] }
 
 [dev-dependencies]
+secure-notify-model = { workspace = true }
 tempfile = { workspace = true }

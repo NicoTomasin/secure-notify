@@ -49,7 +49,7 @@ are licensed **MIT OR Apache-2.0**:
 | Path | Contents |
 |---|---|
 | `sdk/` | WIT packages (plugin interfaces) and per-language guest SDKs. |
-| `schemas/` | JSON Schemas (normalized event, canonical feed, plugin manifest, declarative source, content bundle). |
+| `schemas/` | JSON Schemas (normalized event, taxonomy entity, canonical feed, plugin manifest, declarative source, content bundle). |
 | `crates/model/` | Canonical Rust types from which the JSON Schemas are generated. |
 
 - The license texts are in [`../../LICENSE-MIT`](../../LICENSE-MIT) and

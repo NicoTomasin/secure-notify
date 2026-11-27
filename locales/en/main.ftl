@@ -8,6 +8,9 @@ language-name = English
 command-start = Join this instance with a code
 command-help = List the commands you can use
 command-about = License, version, and source code
+command-watch = Watch a technology
+command-unwatch = Stop watching something
+command-watching = List what you watch
 command-language = Show or change the bot language
 command-invite = Create an invite code for a person (admins)
 command-subscribers = List subscribers (admins)
@@ -32,6 +35,22 @@ help-line = /{ $command } — { $description }
 about-version = Version: { $version }
 about-license = License: { $license }
 about-source = Source code: { $url }
+
+## /watch, /unwatch, /watching
+
+watch-usage = Usage: /watch <name>, for example /watch Node.js. You can watch: { $available }.
+watch-added = You now watch { $name }.
+watch-already = You already watch { $name }.
+watch-unknown = “{ $query }” is not in the catalog. You can watch: { $available }.
+unwatch-usage = Usage: /unwatch <name>, as listed by /watching.
+unwatch-removed = You no longer watch { $name }.
+unwatch-not-watched = You do not watch { $name }.
+watching-none = You do not watch anything yet. Use /watch <name>.
+watching-header = You watch:
+watching-line = { $name } ({ $id }){ $origin ->
+    [derived] {" "}· from your uploads
+   *[manual] {""}
+}
 
 ## /language
 

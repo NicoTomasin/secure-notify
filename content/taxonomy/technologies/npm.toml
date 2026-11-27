@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# "npm" alone appears in almost every npm package advisory, so only "npm cli" is a keyword.
+
+id = "tech:npm"
+name = "npm"
+parent = "tech:node"
+aliases = ["npm CLI"]
+keywords = ["npm cli"]
+
+[mappings]
+purl = ["pkg:npm/npm"]

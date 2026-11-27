@@ -12,6 +12,7 @@ mod instance;
 mod migrations;
 mod subscribers;
 mod time;
+mod watches;
 
 use std::path::PathBuf;
 
