@@ -36,8 +36,9 @@ schema changes follow [migrations.md](migrations.md); branches follow
 
 > Status: `Proposed`
 
-- Every release artifact and image is signed (keyless signing tied to the release workflow
-  identity), with an SBOM (CycloneDX) and build provenance attestations.
+- Every release artifact and image after `0.1.0`, the MVP release (see
+  [../roadmap.md](../roadmap.md#phase-1-mvp)), is signed (keyless signing tied to the release
+  workflow identity), with an SBOM (CycloneDX) and build provenance attestations.
 - Release builds aim to be reproducible; differences are tracked as bugs.
 
 ## Release process

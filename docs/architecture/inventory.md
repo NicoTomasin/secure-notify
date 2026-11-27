@@ -28,7 +28,9 @@ uses locally mirrored data, so the inventory never leaves the instance.
 - Inventory entries MUST NOT be sent to any third party, including vulnerability database APIs.
 - Exact-version matching uses vulnerability data mirrored locally by sources (see
   [matching-and-rules.md](matching-and-rules.md)). Bulk databases are mirrored only for the
-  ecosystems present in at least one inventory, then kept current incrementally.
+  ecosystems present in at least one inventory, then kept current incrementally. While an instance
+  supports a single ecosystem for uploads (the MVP, see [../roadmap.md](../roadmap.md#phase-1-mvp)),
+  that ecosystem is mirrored from the first start, so its data is ready before the first upload.
 
 ## Entries and maintenance
 
@@ -66,6 +68,19 @@ uses locally mirrored data, so the inventory never leaves the instance.
 5. **Initial scan:** the new entries are checked once against the local vulnerability data,
    including backfilled stories, and a single report is sent. The stories in that report are
    recorded in the delivery ledger, so they are not sent again later as new.
+
+### Initial scan before the first synchronization
+
+> Status: `Decided`
+
+The initial scan MUST NOT run against a mirror that has not completed its first synchronization,
+because the stories that synchronization backfills are never notified as new (see
+[deduplication.md](deduplication.md#backfill)) and the subscriber would never learn about them.
+
+- When a mirror covering the new entries' ecosystem is still in its first synchronization, the
+  summary reply says that vulnerability data is still synchronizing and that the report will follow.
+- The initial scan for those entries runs when that synchronization completes, and its report is
+  sent then.
 
 ## Planned file support
 

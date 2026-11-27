@@ -57,6 +57,7 @@ Minimum verification per change type (how to do each is in the
 | Change type | Minimum local verification |
 |---|---|
 | Docs or skills only | Every link resolves; the rendered Markdown was read. |
+| Developer tooling (`xtask` tasks, lint and check configuration) | The changed command was run locally on the clean tree, where it passes, and on a deliberately broken input, where it fails with a message that points to the problem. |
 | Declarative source, source plugin | `plugin test <id>` against fixtures, and once live against the real source; produced events inspected; `source_item_id` stable across two runs. |
 | Parser | Real files of the format uploaded through the console platform or a test bot; reply summary and inventory checked; file content stored nowhere. |
 | Enricher, exposure provider | The instance runs with the plugin enabled and the expected fields or findings appear on real or ingested stories. |

@@ -8,7 +8,7 @@ the lifecycle of a change in [workflow.md](workflow.md).
 
 ## Rust
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Stable toolchain, edition 2024. The minimum supported Rust version is the latest stable minus two
   minor releases, declared in the workspace `Cargo.toml` and checked in CI.
@@ -27,7 +27,7 @@ the lifecycle of a change in [workflow.md](workflow.md).
 
 ## Dependencies
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Prefer well-maintained, widely used crates; disable default features that are not needed.
 - Dependency versions are declared once, in `[workspace.dependencies]`; member crates refer to them
@@ -38,14 +38,14 @@ the lifecycle of a change in [workflow.md](workflow.md).
 
 ## Logging
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Use `tracing` with structured fields; JSON output in production.
 - What MUST NOT be logged is defined in [../architecture/security.md](../architecture/security.md).
 
 ## Continuous integration
 
-> Status: `Proposed`
+> Status: `Decided`
 
 CI runs on GitHub Actions:
 

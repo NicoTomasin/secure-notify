@@ -107,7 +107,7 @@ documentation states those steps and costs.
 | `/upload` | subscriber | Prompt for a file (required in groups on some platforms). |
 | `/inventory` | subscriber | List, add, remove, or clear inventory entries (see [inventory.md](inventory.md)). |
 | `/identities` | subscriber | Manage watched identities (see [exposure-monitoring.md](exposure-monitoring.md)). |
-| `/rules` | subscriber | View, edit, and reset rules (see [matching-and-rules.md](matching-and-rules.md)). |
+| `/rules` | subscriber | View, edit, and reset rules; set the minimum severity (see [matching-and-rules.md](matching-and-rules.md)). |
 | `/delivery` | subscriber | View and edit delivery modes and routing (see [delivery.md](delivery.md)). |
 | `/mutes` | subscriber | List and remove mutes. |
 | `/sources` | subscriber | List enabled sources; exclude one (creates an `ignore` rule). |

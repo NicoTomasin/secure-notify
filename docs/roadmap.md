@@ -35,16 +35,20 @@ reorder or change them only with maintainer confirmation.
 |---|---|
 | Inventory | Parsers for `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `bun.lock`; manual entries; initial scan ([architecture/inventory.md](architecture/inventory.md)). |
 | Taxonomy | JavaScript/TypeScript subset: `tech:javascript`, `tech:typescript`, `tech:node`, `tech:bun`, `tech:npm`, `tech:pnpm`; derived from uploads and watchable with `/watch`. |
-| Sources | Local OSV mirror of the npm ecosystem (includes the GitHub Advisory Database and malicious package entries); Node.js and Bun security release feeds; CISA KEV for the `exploited` flag. |
+| Sources | Local OSV mirror of the npm ecosystem, synchronized from the first start ([architecture/inventory.md](architecture/inventory.md#inventory-stays-local)); it includes the GitHub Advisory Database, malicious package entries, and the Bun runtime's advisories (published for the npm package `bun`); the Node.js security release feed; CISA KEV for the `exploited` flag. |
 | Plugin runtimes | Native plugins and the declarative `rss`/`atom` types; plugin contracts and manifests as specified, even though no external plugins exist yet. |
 | Correlation | Identifiers and canonical URL; backfill; grace window; double check; retention ([architecture/deduplication.md](architecture/deduplication.md)). |
-| Matching | `exact-version`, `component`, and `technology` relevance; npm version semantics; default rules and a minimum-severity setting ([architecture/matching-and-rules.md](architecture/matching-and-rules.md)). |
-| Delivery | `instant` mode; localized messages with English as reference ([architecture/delivery.md](architecture/delivery.md)). |
+| Matching | `exact-version`, `component`, and `technology` relevance; npm version semantics; severity normalization and thresholds; default rules, the minimum severity, and mutes ([architecture/matching-and-rules.md](architecture/matching-and-rules.md)). |
+| Delivery | `instant` mode; update notices for severity increase, `exploited`, `exploit_available`, and fix available, always enabled ([architecture/deduplication.md](architecture/deduplication.md#update-notices)); inline actions ([architecture/delivery.md](architecture/delivery.md#inline-actions)); localized messages in English (reference) and Spanish. |
 | Subscribers | Person subscribers in private chats; pairing and invites ([architecture/subscribers.md](architecture/subscribers.md)). |
-| Commands | `/start`, `/help`, `/about`, `/upload`, `/inventory`, `/watch`, `/unwatch`, `/watching`, `/rules`, `/language`, `/invite`, `/subscribers`, `/remove`, `/status`. |
+| Commands | `/start`, `/help`, `/about`, `/upload`, `/inventory`, `/watch`, `/unwatch`, `/watching`, `/rules`, `/mutes`, `/language`, `/invite`, `/subscribers`, `/remove`, `/status`. |
+| Release | `0.1.0`: the Tier 1 static binaries and the multi-arch container image ([engineering/releases.md](engineering/releases.md#artifacts)). |
 
 Not in the MVP: WASM plugins, other ecosystems, products and organizations, incidents, exposure
-monitoring, teams, other platforms, digests, web panel, federation, content registry updates.
+monitoring, teams, other platforms, digests, per-subscriber update-notice settings, web panel,
+federation, content registry updates, release signatures, SBOM, and provenance.
+
+MVP work is tracked in the repository's `MVP` milestone, with one issue per slice of work.
 
 ### Foundations
 

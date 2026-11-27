@@ -6,7 +6,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 
 ## Toolchain
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Rust stable through rustup. The workspace pins the toolchain channel and components (rustfmt,
   clippy) in `rust-toolchain.toml`; the MSRV rule is in [conventions.md](conventions.md#rust).
@@ -19,7 +19,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 
 ## Cross-platform development
 
-> Status: `Decided` (automation in Rust through `cargo xtask`) / `Proposed` (details)
+> Status: `Decided`
 
 - Linux, macOS, and Windows are supported development platforms.
 - Development automation is written in Rust as `cargo xtask <task>` (the `xtask/` crate), never as
@@ -31,7 +31,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 
 ## Environment
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Local runs read a `.env` file at the repository root, which is git-ignored. `.env.example`
   (committed) lists every environment variable the binary reads, with placeholder values and a
@@ -47,7 +47,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 
 ## Developer commands
 
-> Status: `Proposed`
+> Status: `Decided`
 
 | Command | Purpose |
 |---|---|
@@ -65,7 +65,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 
 ## Development-only features
 
-> Status: `Decided` (a `dev` cargo feature, never in release builds) / `Proposed` (details)
+> Status: `Decided`
 
 - Development-only behavior lives behind the `dev` cargo feature. Release builds and release CI
   jobs MUST NOT enable it, and CI checks that they do not.
@@ -77,7 +77,7 @@ to verify every change locally is in [workflow.md](workflow.md#local-verificatio
 
 ## Console platform
 
-> Status: `Decided` (contributors and agents can verify flows end to end without third-party accounts) / `Proposed` (details)
+> Status: `Decided`
 
 The console platform lets anyone, including an agent without access to Telegram or any other
 platform, run the real instance and exercise its flows end to end: pairing, commands, uploads,
@@ -129,7 +129,7 @@ Illustrative script:
 
 ## Live sources during development
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Live fetches (`plugin test --live`, a running instance) reach real third-party services: keep
   source intervals at their defaults or longer, run live checks once rather than in loops, and never

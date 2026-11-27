@@ -54,13 +54,14 @@ subscriber. Budgets are in [performance.md](performance.md).
 
 ## Severity normalization
 
-> Status: `Proposed`
+> Status: `Decided` (`malicious-package` default) / `Proposed` (rest)
 
 Vulnerability family:
 
 | Input | Level |
 |---|---|
 | Explicit level from source (e.g. GHSA severity) | Used as-is (mapped to the five levels). |
+| `malicious-package` event without an explicit level | `critical`: a malicious package in an inventory is always critical. |
 | CVSS 9.0–10.0 | `critical` |
 | CVSS 7.0–8.9 | `high` |
 | CVSS 4.0–6.9 | `medium` |
@@ -87,6 +88,17 @@ Attacks and outages: incident `impact` `critical` → `critical`, `major` → `h
 Scheduled maintenance (`status = scheduled`) is `low`.
 
 A story's severity is the highest level among its events (see [data-model.md](data-model.md)).
+
+## Severity thresholds
+
+> Status: `Decided`
+
+- Levels are ordered `critical` > `high` > `medium` > `low`.
+- In every threshold comparison (a rule's `min_severity`, the [minimum severity](#minimum-severity)),
+  `unknown` counts as `medium`: a story of unknown severity passes a `medium` threshold and does not
+  pass a `high` one.
+- Thresholds do not change the stored level: a story of unknown severity is still shown and
+  delivered as `unknown` (see [delivery.md](delivery.md)).
 
 ## Rules
 
@@ -128,8 +140,19 @@ Match fields (all optional, combined with AND):
 | `min_epss` | Minimum EPSS score (0–1). |
 
 Actions: `notify` (optionally with `min_severity`) or `ignore`. Mutes (story, entity, component,
-or component version; optionally time-limited) are applied before rules. A story that matches no
-rule is not notified.
+or component version; optionally time-limited) are applied before rules, and the
+[minimum severity](#minimum-severity) after them. A story that matches no rule is not notified.
+
+## Minimum severity
+
+> Status: `Decided` (per-subscriber floor) / `Proposed` (command syntax)
+
+- Each subscriber MAY set a minimum severity. It is unset by default.
+- It applies after the rules: a story that a rule notifies is still not notified when its severity
+  is below the minimum (compared as in [Severity thresholds](#severity-thresholds)), unless the
+  story is `exploited`.
+- Subscribers set it with `/rules severity <level>` and remove it with `/rules severity off` (see
+  [platforms.md](platforms.md#command-set)).
 
 ## Default rules for new subscribers
 

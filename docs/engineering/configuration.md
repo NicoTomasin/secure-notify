@@ -7,7 +7,7 @@ how a new setting enters those layers safely.
 
 ## Choosing the layer
 
-> Status: `Proposed`
+> Status: `Decided`
 
 | The value is | Layer |
 |---|---|
@@ -18,7 +18,7 @@ how a new setting enters those layers safely.
 
 ## Naming
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Environment variables are `UPPER_SNAKE_CASE` and name the thing, not the crate: platform tokens
   as `<PLATFORM>_BOT_TOKEN` or the platform's own term (`SMTP_URL`), provider keys as
@@ -30,7 +30,7 @@ how a new setting enters those layers safely.
 
 ## Defaults and validation
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Every setting has a default, except those the instance cannot run without (at least one platform,
   see [../operations/self-hosting.md](../operations/self-hosting.md#configuration)).
@@ -43,7 +43,7 @@ how a new setting enters those layers safely.
 
 ## Secrets in code
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Secrets are held in a type whose `Debug` and `Display` output is redacted, from the moment they
   are read until they are used.
@@ -53,7 +53,7 @@ how a new setting enters those layers safely.
 
 ## Documenting settings
 
-> Status: `Proposed`
+> Status: `Decided`
 
 A new or changed setting is documented in the same pull request:
 
