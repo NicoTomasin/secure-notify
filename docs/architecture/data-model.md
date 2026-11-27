@@ -122,10 +122,12 @@ A story aggregates its events:
 
 > Status: `Proposed`
 
-Conceptual entities; table names and columns are finalized with the schema.
+Entities and their key fields. The migrations in `crates/storage/migrations/` hold the exact tables
+and columns; entities not used by the MVP get their tables with the feature that needs them.
 
 | Entity | Key fields | Notes |
 |---|---|---|
+| `instance_state` | key, value | Instance-wide state, such as the one-time pairing code (see [subscribers.md](subscribers.md#joining-an-instance)). |
 | `subscribers` | id, kind (`person`/`team`), role (`admin`/`member`, persons only), timezone, language, min_severity?, active, created_at | See [subscribers.md](subscribers.md); `min_severity` in [matching-and-rules.md](matching-and-rules.md#minimum-severity). |
 | `endpoints` | id, subscriber_id, platform, address, kind (`private`/`group`/`channel`/`email`/`webhook`), label, primary, verified, active | One subscriber, many endpoints. |
 | `link_codes` | code, subscriber_id, expires_at | Linking additional endpoints. |
@@ -135,13 +137,15 @@ Conceptual entities; table names and columns are finalized with the schema.
 | `inventory_entries` | subscriber_id, component, version?, last_seen_at (unique subscriber+component+version) | Flat and anonymous. See [inventory.md](inventory.md). |
 | `watched_identities` | id, subscriber_id, kind (`email`/`domain`), value_encrypted, value_hash, verified_at, last_checked_at | See [exposure-monitoring.md](exposure-monitoring.md). |
 | `identity_exposures` | identity_id, story_id, first_seen_at | Which breaches a watched identity appears in. |
+| `pending_scans` | subscriber_id, component, version | Initial scans waiting for a mirror to finish its first synchronization (see [inventory.md](inventory.md#initial-scan-before-the-first-synchronization)). |
 | `source_state` | source_id, key, value | Cursors, backfill status, health (last success, last error). |
 | `events` | id, source, source_item_id (unique together), story_id, payload, content_hash, fetched_at, backfill | |
-| `stories` | id, title, kind, severity_level, cvss, epss, exploited, exploit_available, fix_available, first_seen_at, updated_at, eligible_at, backfill, compacted | `eligible_at` implements the grace window; `compacted` marks a minimal deduplication record (see "Retention" in [deduplication.md](deduplication.md)). |
+| `stories` | id, title, kind, severity_level, cvss, epss, exploited, exploit_available, fix_available, first_seen_at, updated_at, eligible_at, needs_match, backfill, compacted | `eligible_at` implements the grace window; `needs_match` marks stories the matcher has not processed since they became new or materially changed; `compacted` marks a minimal deduplication record (see "Retention" in [deduplication.md](deduplication.md)). |
 | `story_identifiers` | story_id, kind, value (unique kind+value) | Identifier correlation index. |
 | `story_affected` | story_id, component, ranges, fixed | Union of events' `affected`. |
 | `story_entities` | story_id, entity_id | |
 | `story_relations` | story_id, related_story_id | Cross-family references. |
+| `story_merges` | from_story_id, into_story_id | Stories merged into another one; ledger checks and inline actions resolve through it (see [deduplication.md](deduplication.md#story-merges)). |
 | `rules` | id, subscriber_id, position, match, action, min_severity | See [matching-and-rules.md](matching-and-rules.md). |
 | `mutes` | subscriber_id, scope (`story`/`entity`/`component`/`component-version`), value, until? | |
 | `delivery_prefs` | subscriber_id, per-severity mode and routing, quiet hours, update-notice triggers | See [delivery.md](delivery.md). |

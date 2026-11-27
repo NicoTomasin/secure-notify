@@ -12,3 +12,9 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+clap = { workspace = true }
+jiff = { workspace = true }
+secure-notify-storage = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

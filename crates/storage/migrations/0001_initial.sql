@@ -1,0 +1,248 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+-- MVP entities (docs/architecture/data-model.md#persistence-entities). Timestamps are RFC 3339
+-- strings in UTC; booleans are 0 or 1.
+
+-- Instance-wide state, such as the pairing code.
+CREATE TABLE instance_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE subscribers (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('person', 'team')),
+    -- Instance roles belong to persons only.
+    role TEXT CHECK (role IN ('admin', 'member')),
+    timezone TEXT NOT NULL DEFAULT 'UTC',
+    language TEXT NOT NULL DEFAULT 'en',
+    min_severity TEXT CHECK (min_severity IN ('critical', 'high', 'medium', 'low')),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL,
+    CHECK ((kind = 'person' AND role IS NOT NULL) OR (kind = 'team' AND role IS NULL))
+) STRICT;
+
+CREATE TABLE endpoints (
+    id INTEGER PRIMARY KEY,
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    address TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('private', 'group', 'channel', 'email', 'webhook')),
+    label TEXT,
+    is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+    verified INTEGER NOT NULL DEFAULT 1 CHECK (verified IN (0, 1)),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL,
+    UNIQUE (platform, address)
+) STRICT;
+
+CREATE INDEX endpoints_subscriber ON endpoints (subscriber_id);
+
+CREATE TABLE invites (
+    code TEXT PRIMARY KEY,
+    created_by INTEGER REFERENCES subscribers (id) ON DELETE SET NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('person', 'team')),
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_by INTEGER REFERENCES subscribers (id) ON DELETE SET NULL,
+    used_at TEXT
+) STRICT;
+
+CREATE TABLE watches (
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    entity_id TEXT NOT NULL,
+    origin TEXT NOT NULL CHECK (origin IN ('manual', 'derived')),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (subscriber_id, entity_id)
+) STRICT, WITHOUT ROWID;
+
+-- Inverted index: entity -> subscribers.
+CREATE INDEX watches_entity ON watches (entity_id);
+
+-- Flat, anonymous inventory (docs/architecture/inventory.md#privacy). `version` is empty when
+-- only a range is known.
+CREATE TABLE inventory_entries (
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    component TEXT NOT NULL,
+    version TEXT NOT NULL DEFAULT '',
+    last_seen_at TEXT NOT NULL,
+    PRIMARY KEY (subscriber_id, component, version)
+) STRICT, WITHOUT ROWID;
+
+-- Inverted index: component -> subscribers.
+CREATE INDEX inventory_component ON inventory_entries (component);
+
+-- Initial scans deferred until a mirror completes its first synchronization
+-- (docs/architecture/inventory.md#initial-scan-before-the-first-synchronization).
+CREATE TABLE pending_scans (
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    component TEXT NOT NULL,
+    version TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (subscriber_id, component, version)
+) STRICT, WITHOUT ROWID;
+
+-- Cursors, backfill status, and health per source.
+CREATE TABLE source_state (
+    source_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (source_id, key)
+) STRICT, WITHOUT ROWID;
+
+CREATE TABLE stories (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('vulnerability', 'exploit', 'malicious-package', 'release',
+        'bug', 'breach', 'attack', 'outage', 'news')),
+    title TEXT NOT NULL,
+    -- Priority of the source that provided the title (docs/architecture/data-model.md#story).
+    title_priority INTEGER NOT NULL,
+    summary TEXT,
+    url TEXT,
+    published_at TEXT,
+    severity_level TEXT NOT NULL CHECK (severity_level IN ('critical', 'high', 'medium', 'low',
+        'unknown')),
+    cvss_version TEXT,
+    cvss_score REAL,
+    cvss_vector TEXT,
+    epss_score REAL,
+    epss_percentile REAL,
+    exploited INTEGER NOT NULL DEFAULT 0 CHECK (exploited IN (0, 1)),
+    exploit_available INTEGER NOT NULL DEFAULT 0 CHECK (exploit_available IN (0, 1)),
+    fix_available INTEGER NOT NULL DEFAULT 0 CHECK (fix_available IN (0, 1)),
+    first_seen_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    -- Grace window (docs/architecture/deduplication.md#grace-window).
+    eligible_at TEXT,
+    -- Set when the story is new or materially changed and the matcher has not processed it yet.
+    needs_match INTEGER NOT NULL DEFAULT 0 CHECK (needs_match IN (0, 1)),
+    -- Every event of the story is backfilled.
+    backfill INTEGER NOT NULL CHECK (backfill IN (0, 1)),
+    -- Minimal deduplication record (docs/architecture/deduplication.md#retention).
+    compacted INTEGER NOT NULL DEFAULT 0 CHECK (compacted IN (0, 1))
+) STRICT;
+
+CREATE INDEX stories_needs_match ON stories (eligible_at) WHERE needs_match = 1;
+CREATE INDEX stories_updated ON stories (updated_at);
+
+-- Stories merged into another one; the ledger and inline actions resolve through it.
+CREATE TABLE story_merges (
+    from_story_id INTEGER PRIMARY KEY,
+    into_story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE
+) STRICT;
+
+CREATE TABLE events (
+    id INTEGER PRIMARY KEY,
+    source TEXT NOT NULL,
+    source_item_id TEXT NOT NULL,
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    -- Normalized event JSON; NULL once detailed data expired.
+    payload TEXT,
+    content_hash TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    backfill INTEGER NOT NULL CHECK (backfill IN (0, 1)),
+    -- From a source that mirrors a database: exempt from retention.
+    mirror INTEGER NOT NULL DEFAULT 0 CHECK (mirror IN (0, 1)),
+    UNIQUE (source, source_item_id)
+) STRICT;
+
+CREATE INDEX events_story ON events (story_id);
+
+-- Identifier correlation index. Kinds: cve, ghsa, osv, other, and url (canonical URLs).
+CREATE TABLE story_identifiers (
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (kind, value)
+) STRICT, WITHOUT ROWID;
+
+CREATE INDEX story_identifiers_story ON story_identifiers (story_id);
+
+-- Union of the events' `affected`; `ranges` and `fixed` are JSON arrays.
+CREATE TABLE story_affected (
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    component TEXT NOT NULL,
+    ranges TEXT NOT NULL,
+    fixed TEXT NOT NULL,
+    PRIMARY KEY (story_id, component)
+) STRICT, WITHOUT ROWID;
+
+CREATE INDEX story_affected_component ON story_affected (component);
+
+CREATE TABLE story_entities (
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    entity_id TEXT NOT NULL,
+    PRIMARY KEY (story_id, entity_id)
+) STRICT, WITHOUT ROWID;
+
+CREATE INDEX story_entities_entity ON story_entities (entity_id);
+
+CREATE TABLE story_relations (
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    related_story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    PRIMARY KEY (story_id, related_story_id)
+) STRICT, WITHOUT ROWID;
+
+-- Rules in evaluation order; `match` is JSON (docs/architecture/matching-and-rules.md#rules).
+CREATE TABLE rules (
+    id INTEGER PRIMARY KEY,
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    match TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('notify', 'ignore')),
+    min_severity TEXT CHECK (min_severity IN ('critical', 'high', 'medium', 'low')),
+    UNIQUE (subscriber_id, position)
+) STRICT;
+
+CREATE TABLE mutes (
+    id INTEGER PRIMARY KEY,
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    scope TEXT NOT NULL CHECK (scope IN ('story', 'entity', 'component', 'component-version')),
+    value TEXT NOT NULL,
+    until TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE (subscriber_id, scope, value)
+) STRICT;
+
+-- Pending notifications; rows are deleted when sent or dropped.
+CREATE TABLE notification_queue (
+    id INTEGER PRIMARY KEY,
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('new', 'update')),
+    -- Relevance and matched inventory entries, as JSON, for the message.
+    reason TEXT NOT NULL,
+    due_at TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    UNIQUE (subscriber_id, story_id, kind)
+) STRICT;
+
+CREATE INDEX notification_queue_due ON notification_queue (due_at);
+
+-- The delivery ledger; `snapshot` is the JSON state of the story as sent. `scan` rows record
+-- stories reported by an initial scan.
+CREATE TABLE deliveries (
+    id INTEGER PRIMARY KEY,
+    subscriber_id INTEGER NOT NULL REFERENCES subscribers (id) ON DELETE CASCADE,
+    story_id INTEGER NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('new', 'update', 'scan')),
+    snapshot TEXT NOT NULL,
+    sent_at TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX deliveries_subscriber_story ON deliveries (subscriber_id, story_id);
+CREATE INDEX deliveries_story ON deliveries (story_id);
+
+-- Per-endpoint send attempts.
+CREATE TABLE delivery_attempts (
+    id INTEGER PRIMARY KEY,
+    queue_item_id INTEGER,
+    endpoint_id INTEGER NOT NULL REFERENCES endpoints (id) ON DELETE CASCADE,
+    attempt INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
+    error TEXT,
+    at TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX delivery_attempts_queue_item ON delivery_attempts (queue_item_id);
