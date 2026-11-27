@@ -28,8 +28,14 @@ publish = false
 [workspace.dependencies]
 # Workspace crates
 secure-notify-model = { path = "crates/model" }
+secure-notify-storage = { path = "crates/storage" }
 
 # Third-party crates
+clap = { version = "4", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
+insta = { version = "1" }
+rusqlite = { version = "0.43", default-features = false, features = ["bundled"] }
+tempfile = { version = "3" }
+tokio = { version = "1", default-features = false }
 jiff = { version = "0.2", default-features = false, features = ["std", "serde"] }
 schemars = { version = "1", default-features = false, features = ["std", "derive", "jiff02"] }
 serde = { version = "1", default-features = false, features = ["std", "derive"] }

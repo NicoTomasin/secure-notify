@@ -89,8 +89,9 @@ its source. For a bot:
 > Status: `Proposed`
 
 - Every source file starts with an SPDX header in the file type's comment syntax:
-  `// SPDX-License-Identifier: AGPL-3.0-or-later` (Rust, WIT) or
-  `# SPDX-License-Identifier: AGPL-3.0-or-later` (TOML, Fluent, shell). Files in the permissive
+  `// SPDX-License-Identifier: AGPL-3.0-or-later` (Rust, WIT),
+  `# SPDX-License-Identifier: AGPL-3.0-or-later` (TOML, Fluent, shell), or
+  `-- SPDX-License-Identifier: AGPL-3.0-or-later` (SQL). Files in the permissive
   paths use `MIT OR Apache-2.0`.
 - Every crate declares its license in `Cargo.toml` (`license = "AGPL-3.0-or-later"` or
   `license = "MIT OR Apache-2.0"`).

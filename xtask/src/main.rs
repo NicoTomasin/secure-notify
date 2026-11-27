@@ -13,6 +13,7 @@ mod deps;
 mod docs;
 mod headers;
 mod markdown;
+mod migrations;
 mod schemas;
 mod skills;
 
@@ -64,6 +65,11 @@ const CHECKS: &[Check] = &[
         name: "schemas",
         about: "generated JSON Schemas are current",
         run: schemas::check,
+    },
+    Check {
+        name: "migrations",
+        about: "migration names and sequence numbers",
+        run: migrations::check,
     },
     Check {
         name: "headers",

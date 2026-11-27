@@ -18,6 +18,7 @@ fn comment_prefix(path: &str) -> Option<&'static str> {
     match extension {
         "rs" | "wit" => Some("//"),
         "toml" | "ftl" | "sh" => Some("#"),
+        "sql" => Some("--"),
         _ => None,
     }
 }

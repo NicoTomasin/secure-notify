@@ -62,10 +62,13 @@ Three layers with distinct responsibilities:
 
 > Status: `Proposed`
 
+- The data directory (`DATA_DIR`) holds the database file `secure-notify.db` and the `backups/`
+  directory.
 - `secure-notify backup <path>` writes a consistent online backup of the database. Copying the file
   while the instance is stopped is also valid.
 - Upgrading means replacing the binary or image; migrations run automatically after an automatic
-  backup (see [../engineering/migrations.md](../engineering/migrations.md)).
+  backup (see [../engineering/migrations.md](../engineering/migrations.md)). Automatic backups
+  are written to `backups/` in the data directory, and the three most recent are kept.
 
 ## Operations
 
