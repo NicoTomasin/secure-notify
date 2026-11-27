@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "Mappings": {
+      "additionalProperties": false,
+      "description": "Exact mappings of an entity.",
+      "properties": {
+        "cpe": {
+          "default": [],
+          "description": "CPE 2.3 prefixes, such as `cpe:2.3:o:fortinet:fortios`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "domains": {
+          "default": [],
+          "description": "Domains of an organization.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "purl": {
+          "default": [],
+          "description": "Package URLs without version, such as `pkg:npm/typescript`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "statuspage": {
+          "description": "Status page URL of an organization.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One taxonomy entity, from `content/taxonomy/<kind>/<slug>.toml`.",
+  "properties": {
+    "aliases": {
+      "default": [],
+      "description": "Other names, accepted by `/watch`.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Stable ID: `tech:<slug>`, `product:<vendor>/<slug>`, `vendor:<slug>`, or `org:<slug>`.",
+      "type": "string"
+    },
+    "keywords": {
+      "default": [],
+      "description": "Words that tag free text with this entity.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "mappings": {
+      "$ref": "#/$defs/Mappings",
+      "default": {
+        "cpe": [],
+        "domains": [],
+        "purl": []
+      },
+      "description": "Exact mappings to standard identifiers."
+    },
+    "name": {
+      "description": "Display name.",
+      "type": "string"
+    },
+    "parent": {
+      "description": "Parent entity (a product's vendor, a technology's ecosystem).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requires_any": {
+      "default": [],
+      "description": "Qualifiers: when set, a keyword tags text only if one of these also appears.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name"
+  ],
+  "title": "Taxonomy entity",
+  "type": "object"
+}

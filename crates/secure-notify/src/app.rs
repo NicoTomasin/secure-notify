@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use secure_notify_conversation::{About, Conversation, I18n};
+use secure_notify_core::app::Core;
 use secure_notify_core::ports::{Clock, Random};
-use secure_notify_core::subscribers::Subscribers;
 use secure_notify_storage::Database;
 
 use crate::config::Settings;
@@ -31,12 +31,13 @@ pub(crate) fn conversation(
     clock: Arc<dyn Clock>,
 ) -> Result<Conversation<Database>, String> {
     let i18n = I18n::load().map_err(|e| format!("cannot load translations: {e}"))?;
-    let subscribers = Subscribers::new(database, clock, Arc::new(OsRandom));
+    let taxonomy = crate::content::embedded_taxonomy()?;
+    let core = Core::new(database, Arc::new(taxonomy), clock, Arc::new(OsRandom));
     let about = About {
         version: env!("CARGO_PKG_VERSION").to_string(),
         source_url: settings.source_url.clone(),
     };
-    Ok(Conversation::new(subscribers, i18n, about))
+    Ok(Conversation::new(core, i18n, about))
 }
 
 /// While no admin exists, makes sure a pairing code exists and prints it to the logs

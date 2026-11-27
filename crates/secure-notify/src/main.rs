@@ -6,6 +6,7 @@ mod app;
 mod config;
 #[cfg(feature = "dev")]
 mod console;
+mod content;
 mod logging;
 
 use std::path::{Path, PathBuf};
@@ -37,10 +38,24 @@ enum Command {
         /// Destination file; it must not exist.
         path: PathBuf,
     },
+    /// Content tools for contributors.
+    #[command(subcommand)]
+    Content(ContentCommand),
     /// Development tools (built with the `dev` feature).
     #[cfg(feature = "dev")]
     #[command(subcommand)]
     Dev(DevCommand),
+}
+
+/// Content subcommands.
+#[derive(Debug, Subcommand)]
+enum ContentCommand {
+    /// Validate content files against their schemas and rules.
+    Verify {
+        /// Content directory.
+        #[arg(long, default_value = "content")]
+        dir: PathBuf,
+    },
 }
 
 /// Development-only subcommands.
@@ -126,6 +141,11 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
                 .await
                 .map_err(|e| format!("backup failed: {e}"))?;
             tracing::info!(path = %path.display(), "backup written");
+            Ok(())
+        }
+        Command::Content(ContentCommand::Verify { dir }) => {
+            let count = content::verify(&dir)?;
+            tracing::info!(files = count, dir = %dir.display(), "content is valid");
             Ok(())
         }
         #[cfg(feature = "dev")]

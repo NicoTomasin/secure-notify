@@ -242,7 +242,7 @@ fn check_affected(errors: &mut Errors, field: &str, affected: &Affected) {
 }
 
 /// A purl without version: `pkg:<type>/<name>`, where an `@` in a name is percent-encoded.
-fn check_purl(purl: &str) -> Result<(), String> {
+pub(crate) fn check_purl(purl: &str) -> Result<(), String> {
     let rest = purl
         .strip_prefix("pkg:")
         .ok_or_else(|| format!("`{purl}` is not a purl (`pkg:<type>/<name>`)"))?;

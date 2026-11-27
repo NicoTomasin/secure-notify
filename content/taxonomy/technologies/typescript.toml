@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+id = "tech:typescript"
+name = "TypeScript"
+parent = "tech:javascript"
+aliases = ["TS"]
+
+[mappings]
+purl = ["pkg:npm/typescript"]

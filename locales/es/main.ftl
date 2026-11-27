@@ -8,6 +8,9 @@ language-name = Español
 command-start = Unirte a esta instancia con un código
 command-help = Ver los comandos que podés usar
 command-about = Licencia, versión y código fuente
+command-watch = Seguir una tecnología
+command-unwatch = Dejar de seguir algo
+command-watching = Ver lo que seguís
 command-language = Ver o cambiar el idioma del bot
 command-invite = Crear un código de invitación para una persona (admins)
 command-subscribers = Ver los suscriptores (admins)
@@ -32,6 +35,22 @@ help-line = /{ $command } — { $description }
 about-version = Versión: { $version }
 about-license = Licencia: { $license }
 about-source = Código fuente: { $url }
+
+## /watch, /unwatch, /watching
+
+watch-usage = Uso: /watch <nombre>, por ejemplo /watch Node.js. Podés seguir: { $available }.
+watch-added = Ahora seguís { $name }.
+watch-already = Ya seguís { $name }.
+watch-unknown = “{ $query }” no está en el catálogo. Podés seguir: { $available }.
+unwatch-usage = Uso: /unwatch <nombre>, como aparece en /watching.
+unwatch-removed = Ya no seguís { $name }.
+unwatch-not-watched = No seguís { $name }.
+watching-none = Todavía no seguís nada. Usá /watch <nombre>.
+watching-header = Seguís:
+watching-line = { $name } ({ $id }){ $origin ->
+    [derived] {" "}· por tus archivos subidos
+   *[manual] {""}
+}
 
 ## /language
 

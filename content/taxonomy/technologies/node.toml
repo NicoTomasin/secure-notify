@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Node.js core advisories are tagged by their source (the Node.js security feed). The name is
+# also used in library names ("... Node.js SDK"), so it is not a keyword.
+
+id = "tech:node"
+name = "Node.js"
+parent = "tech:javascript"
+aliases = ["Node", "nodejs"]
