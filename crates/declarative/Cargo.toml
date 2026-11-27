@@ -12,3 +12,13 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
+
+[dependencies]
+feed-rs = { workspace = true }
+jiff = { workspace = true }
+secure-notify-core = { workspace = true }
+secure-notify-model = { workspace = true }
+serde_json = { workspace = true }

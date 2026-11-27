@@ -11,6 +11,7 @@ mod database;
 mod instance;
 mod inventory;
 mod migrations;
+mod source_state;
 mod subscribers;
 mod time;
 mod watches;

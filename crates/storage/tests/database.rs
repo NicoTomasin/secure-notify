@@ -245,3 +245,19 @@ async fn instance_values_are_stored_and_replaced() {
         Some("second")
     );
 }
+
+#[tokio::test]
+async fn source_state_is_replaced_as_a_whole() {
+    use secure_notify_core::sources::{SourceState, SourceStateStore};
+    let dir = tempfile::tempdir().unwrap();
+    let db = open(dir.path());
+    let mut state = SourceState::new();
+    state.insert("cursor".to_string(), "1".to_string());
+    state.insert("old".to_string(), "x".to_string());
+    db.save_source_state("osv", &state).await.unwrap();
+    state.remove("old");
+    state.insert("cursor".to_string(), "2".to_string());
+    db.save_source_state("osv", &state).await.unwrap();
+    assert_eq!(db.source_state("osv").await.unwrap(), state);
+    assert!(db.source_state("other").await.unwrap().is_empty());
+}

@@ -8,6 +8,7 @@ mod config;
 mod console;
 mod content;
 mod logging;
+mod sources;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -38,6 +39,9 @@ enum Command {
         /// Destination file; it must not exist.
         path: PathBuf,
     },
+    /// Plugin tools for contributors.
+    #[command(subcommand)]
+    Plugin(PluginCommand),
     /// Content tools for contributors.
     #[command(subcommand)]
     Content(ContentCommand),
@@ -45,6 +49,24 @@ enum Command {
     #[cfg(feature = "dev")]
     #[command(subcommand)]
     Dev(DevCommand),
+}
+
+/// Plugin subcommands.
+#[derive(Debug, Subcommand)]
+enum PluginCommand {
+    /// Run a source against its recorded fixtures (or once against the real source).
+    Test {
+        /// Source ID.
+        id: String,
+        /// Fetch once from the real source instead of the fixtures.
+        #[arg(long)]
+        live: bool,
+    },
+    /// Fetch once from the real source and record its responses as fixtures.
+    Record {
+        /// Source ID.
+        id: String,
+    },
 }
 
 /// Content subcommands.
@@ -146,6 +168,8 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
             tracing::info!(path = %path.display(), "backup written");
             Ok(())
         }
+        Command::Plugin(PluginCommand::Test { id, live }) => sources::test(&id, live).await,
+        Command::Plugin(PluginCommand::Record { id }) => sources::record(&id).await,
         Command::Content(ContentCommand::Verify { dir, plugins }) => {
             let count = content::verify(&dir)?;
             let manifests = content::verify_manifests(&plugins)?;

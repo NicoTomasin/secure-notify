@@ -7,12 +7,14 @@
 //! canonical feed exchange events as JSON validated against the generated schema.
 
 mod content;
+mod declarative;
 mod event;
 mod manifest;
 mod purl;
 mod validate;
 
 pub use content::{Mappings, TaxonomyEntity, load_taxonomy, normalize_text};
+pub use declarative::{DeclarativeSource, DeclarativeType, Defaults, load_declarative_source};
 pub use event::{
     Affected, Breach, Component, Cvss, DataClass, Entities, Epss, EventKind, Identifiers, Incident,
     IncidentImpact, IncidentStatus, KindFamily, NormalizedEvent, Range, RangeEvent, RangeType,
@@ -28,6 +30,10 @@ pub fn json_schemas() -> Vec<(&'static str, serde_json::Value)> {
         (
             "normalized-event.schema.json",
             serde_json::to_value(schemars::schema_for!(NormalizedEvent)).unwrap_or_default(),
+        ),
+        (
+            "declarative-source.schema.json",
+            serde_json::to_value(schemars::schema_for!(DeclarativeSource)).unwrap_or_default(),
         ),
         (
             "plugin-manifest.schema.json",

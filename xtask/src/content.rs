@@ -27,9 +27,14 @@ pub(crate) fn check(root: &Path) -> CheckResult {
     if taxonomy.is_dir() {
         collect(&taxonomy, &taxonomy, &mut files)?;
     }
-    let mut problems = secure_notify_model::load_taxonomy(&files)
-        .err()
-        .unwrap_or_default();
+    let (entities, mut problems) = match secure_notify_model::load_taxonomy(&files) {
+        Ok(entities) => (entities, Vec::new()),
+        Err(problems) => (Vec::new(), problems),
+    };
+    problems.extend(feed_problems(
+        &root.join("content").join("feeds"),
+        &entities,
+    )?);
     problems.extend(manifest_problems(&root.join("plugins"))?);
     if problems.is_empty() {
         Ok(())
@@ -60,6 +65,40 @@ fn manifest_problems(plugins: &Path) -> Result<Vec<String>, String> {
                 }
                 Err(_) => problems.push(format!("{shown} is missing")),
             }
+        }
+    }
+    Ok(problems)
+}
+
+/// Problems in `content/feeds/<id>.toml` declarative sources
+/// (docs/architecture/plugin-runtimes.md#declarative-runtime).
+fn feed_problems(
+    feeds: &Path,
+    entities: &[secure_notify_model::TaxonomyEntity],
+) -> Result<Vec<String>, String> {
+    let mut problems = Vec::new();
+    let Ok(files) = fs::read_dir(feeds) else {
+        return Ok(problems);
+    };
+    for path in files.flatten().map(|e| e.path()) {
+        let Some(stem) = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".toml"))
+        else {
+            continue;
+        };
+        let shown = format!("content/feeds/{stem}.toml");
+        let text = fs::read_to_string(&path).map_err(|e| format!("{shown}: {e}"))?;
+        match secure_notify_model::load_declarative_source(stem, &text) {
+            Ok(definition) => {
+                for entity in &definition.defaults.entities {
+                    if !entities.iter().any(|e| &e.id == entity) {
+                        problems.push(format!("{shown}: unknown entity `{entity}`"));
+                    }
+                }
+            }
+            Err(found) => problems.extend(found.into_iter().map(|p| format!("{shown}: {p}"))),
         }
     }
     Ok(problems)

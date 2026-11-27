@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Node.js security release announcements. The feed is public; https://nodejs.org/robots.txt does
+# not disallow /en/feed/.
+
+id = "nodejs-security"
+name = "Node.js security releases"
+type = "rss"
+url = "https://nodejs.org/en/feed/vulnerability.xml"
+interval = "30m"
+default_enabled = true
+
+[defaults]
+kind = "release"
+entities = ["tech:node"]
+severity = "high"

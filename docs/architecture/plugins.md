@@ -70,6 +70,16 @@ Every runtime receives the same host services:
 | Clock | Current time (injectable in tests). |
 | Secrets | Values of the secrets the plugin declared (e.g. an API key), configured by the operator. |
 
+HTTP defaults: one request per second per host, a 60-second timeout per request, responses up to
+50 MB, two retries with exponential backoff after transport errors, timeouts, `429`, and `5xx`, at
+most five redirects, each checked against the declared hosts and the SSRF rules. TLS uses rustls
+with embedded web PKI roots.
+
+The runner keeps each source's state in `source_state`: the source's own cursors, whether the first
+synchronization (the backfill) finished, and health (last attempt, last success, last error,
+consecutive failures, events ingested). A failed run keeps the previous cursors; the next attempt
+waits one interval, doubled for each consecutive failure, up to one day.
+
 ## Parsers
 
 > Status: `Proposed`
