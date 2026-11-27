@@ -39,6 +39,17 @@ Three layers with distinct responsibilities:
 | Instance config file (`secure-notify.toml`, optional) | operator | Enabled platforms, enabled/disabled sources and interval overrides, external plugins, plugin resource limits, content registry settings, registration settings, grace window, similarity thresholds, HTTP server surfaces and `public_url`, federation feeds, retention. Sensible defaults when absent. |
 | Bot commands and web panel | each subscriber | Watches, inventory, identities, rules, delivery, endpoints, timezone, language. |
 
+Environment variables read by the binary (every one is listed in `.env.example`; empty values count
+as unset):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DATA_DIR` | `data` | Directory for the database and its backups. |
+| `LOG_LEVEL` | `info` | `error`, `warn`, `info`, `debug`, or `trace`. |
+| `CONFIG_FILE` | `secure-notify.toml` in `DATA_DIR`, when present | Instance config file; when set, the file MUST exist. |
+| `SOURCE_URL` | the canonical repository URL | Source link shown by `/about`. |
+| `TELEGRAM_BOT_TOKEN` | none | Telegram bot token (secret; `TELEGRAM_BOT_TOKEN_FILE` reads it from a file). |
+
 - At least one platform MUST be configured.
 - `SOURCE_URL` defaults to the canonical repository URL and MUST point to the operator's source if
   they run a modified version (see [../product/licensing.md](../product/licensing.md)).

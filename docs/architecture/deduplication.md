@@ -117,7 +117,7 @@ Details:
 > Status: `Proposed`
 
 New or materially changed stories get `eligible_at = now + grace window` (default 5 minutes,
-instance-configurable). Stories are not dispatched before `eligible_at`, giving parallel sources
+instance setting `correlation.grace_window`). Stories are not dispatched before `eligible_at`, giving parallel sources
 time to arrive and correlate. This applies to `instant` delivery as well.
 
 ## Double check before dispatch

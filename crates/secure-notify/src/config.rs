@@ -368,6 +368,18 @@ mod tests {
     }
 
     #[test]
+    fn empty_values_from_the_example_file_count_as_unset() {
+        // `.env.example` lists every variable with an empty value.
+        let source = FakeSource::default()
+            .var("CONFIG_FILE", "")
+            .var("SOURCE_URL", "")
+            .var("TELEGRAM_BOT_TOKEN", "");
+        let settings = load(&source).unwrap();
+        assert_eq!(settings.telegram_bot_token, None);
+        assert_eq!(settings.source_url, DEFAULT_SOURCE_URL);
+    }
+
+    #[test]
     fn secrets_are_read_from_a_file_variant() {
         let source = FakeSource::default()
             .var("TELEGRAM_BOT_TOKEN_FILE", "/run/secrets/token")
