@@ -44,6 +44,9 @@ is described in [plugin-runtimes.md](plugin-runtimes.md).
   follow the ethical boundaries in [../product/vision.md](../product/vision.md).
 - Most feed sources need no code: see the declarative runtime in
   [plugin-runtimes.md](plugin-runtimes.md).
+- Operators override a source in the instance config file with `[sources.<id>]`: `enabled`
+  (replaces the source's `default_enabled`) and `interval` (replaces its schedule). An ID that
+  matches no source stops the instance at startup.
 
 Illustrative native contract:
 

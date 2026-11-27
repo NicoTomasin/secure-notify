@@ -139,6 +139,7 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
             let conversation =
                 app::conversation(settings, database.clone(), Arc::new(SystemClock))?;
             app::announce_pairing_code(&conversation).await?;
+            app::start_pipeline(settings, &database, Arc::new(SystemClock))?;
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
                 data_dir = %settings.data_dir.display(),
@@ -186,7 +187,15 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
             let clock = Arc::new(console::DevClock::default());
             let conversation = app::conversation(settings, database.clone(), clock.clone())?;
             app::announce_pairing_code(&conversation).await?;
-            let ok = console::run(&conversation, &database, &clock, script.as_deref()).await?;
+            let correlator = app::start_pipeline(settings, &database, clock.clone())?;
+            let ok = console::run(
+                &conversation,
+                &database,
+                &correlator,
+                &clock,
+                script.as_deref(),
+            )
+            .await?;
             database.close();
             if ok {
                 Ok(())

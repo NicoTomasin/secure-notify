@@ -7,10 +7,12 @@
 //! forward-only, and applied when the database is opened, after an automatic backup
 //! (docs/engineering/migrations.md).
 
+mod correlation;
 mod database;
 mod instance;
 mod inventory;
 mod migrations;
+mod retention;
 mod source_state;
 mod subscribers;
 mod time;

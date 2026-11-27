@@ -57,6 +57,15 @@ Applied in order; the first strong match wins.
 
 If no signal matches, a new story is created.
 
+- Only explicit identifiers (signal 1) merge stories. Linked identifiers join a story only when
+  they point to exactly one story of a compatible family; text that mentions several stories
+  creates a new story instead of merging them (see [Conservative merging](#conservative-merging)).
+- A story is handed to the matcher when it is new, or when an event that is not a backfill changes
+  it materially: its severity level increases, it becomes `exploited` or gets an available
+  exploit, a fix becomes available, its kind changes, or it was a compacted record and is rebuilt.
+  Each of these also starts a new grace window. Other reports of the same story change nothing
+  that subscribers see.
+
 ## Conservative merging
 
 > Status: `Proposed`

@@ -44,6 +44,8 @@ pub(crate) struct InstanceConfig {
     pub(crate) correlation: CorrelationConfig,
     /// `[retention]`.
     pub(crate) retention: RetentionConfig,
+    /// `[sources.<id>]`: per-source overrides (docs/architecture/plugins.md#sources).
+    pub(crate) sources: std::collections::BTreeMap<String, SourceSettings>,
 }
 
 /// `[correlation]` (docs/architecture/deduplication.md#grace-window).
@@ -61,6 +63,24 @@ impl Default for CorrelationConfig {
             grace_window: SignedDuration::from_mins(5),
         }
     }
+}
+
+/// `[sources.<id>]`.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SourceSettings {
+    /// `enabled`: overrides the source's `default_enabled`.
+    #[serde(default)]
+    pub(crate) enabled: Option<bool>,
+    /// `interval`: overrides the source's interval.
+    #[serde(default, deserialize_with = "optional_positive_duration")]
+    pub(crate) interval: Option<SignedDuration>,
+}
+
+fn optional_positive_duration<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<SignedDuration>, D::Error> {
+    positive_duration(deserializer).map(Some)
 }
 
 /// `[retention]` (docs/architecture/deduplication.md#retention).
