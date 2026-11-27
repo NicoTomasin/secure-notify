@@ -60,6 +60,8 @@ pub struct SourceInfo {
     pub mirror: bool,
     /// Whether it is enabled when the operator says nothing.
     pub default_enabled: bool,
+    /// Whether it is a structured database (its titles win over feeds and news).
+    pub structured: bool,
     /// The only hosts it may contact.
     pub hosts: Vec<String>,
 }
@@ -243,4 +245,59 @@ where
     }
     store.save_source_state(&info.id, &state).await?;
     Ok(report)
+}
+
+/// Runs a source forever on its schedule, in real time: sources never follow the console's
+/// development clock (docs/engineering/local-development.md#console-platform). A failure is
+/// recorded and backed off; it never affects other sources.
+pub async fn schedule<St, Sk>(
+    source: std::sync::Arc<dyn Source>,
+    http: std::sync::Arc<dyn SourceHttp>,
+    store: St,
+    sink: std::sync::Arc<Sk>,
+) where
+    St: SourceStateStore,
+    Sk: EventSink,
+{
+    let info = source.info().clone();
+    loop {
+        let now = Timestamp::now();
+        let wait = match store.source_state(&info.id).await {
+            Ok(state) => next_run(&info, &state, now).duration_since(now),
+            Err(error) => {
+                tracing::error!(source = %info.id, error = %error, "cannot read source state");
+                SignedDuration::from_mins(1)
+            }
+        };
+        if let Ok(wait) = std::time::Duration::try_from(wait) {
+            tokio::time::sleep(wait).await;
+        }
+        match run_once(
+            source.as_ref(),
+            http.as_ref(),
+            &store,
+            sink.as_ref(),
+            Timestamp::now(),
+        )
+        .await
+        {
+            Ok(report) if report.error.is_none() => tracing::info!(
+                source = %info.id,
+                backfill = report.backfill,
+                fetched = report.fetched,
+                dropped = report.dropped,
+                ingested = report.ingested,
+                "source run finished"
+            ),
+            Ok(report) => tracing::warn!(
+                source = %info.id,
+                error = report.error.as_deref().unwrap_or_default(),
+                "source run failed"
+            ),
+            Err(error) => {
+                tracing::error!(source = %info.id, error = %error, "source run could not be recorded");
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            }
+        }
+    }
 }

@@ -6,8 +6,12 @@ use std::sync::Arc;
 
 use secure_notify_conversation::{About, Conversation, I18n};
 use secure_notify_core::app::Core;
+use secure_notify_core::correlation::Correlator;
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::ports::{Clock, Random};
+use secure_notify_core::sources::{
+    BoxFuture, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState, schedule,
+};
 use secure_notify_parser_bun::BunParser;
 use secure_notify_parser_npm::NpmParser;
 use secure_notify_parser_pnpm::PnpmParser;
@@ -76,4 +80,111 @@ pub(crate) async fn announce_pairing_code(
         );
     }
     Ok(())
+}
+
+/// Starts the pipeline tasks: one scheduled task per enabled source, and the daily retention pass.
+/// Unknown source IDs in `[sources]` stop the instance.
+pub(crate) fn start_pipeline(
+    settings: &Settings,
+    database: &Database,
+    clock: Arc<dyn Clock>,
+) -> Result<Arc<Correlator<Database>>, String> {
+    let registry = crate::sources::registry()?;
+    for id in settings.instance.sources.keys() {
+        if !registry.iter().any(|s| &s.info().id == id) {
+            return Err(format!(
+                "invalid setting sources.{id}: no source with this ID"
+            ));
+        }
+    }
+    let taxonomy = Arc::new(crate::content::embedded_taxonomy()?);
+    let correlator = Arc::new(Correlator::new(
+        database.clone(),
+        taxonomy,
+        clock.clone(),
+        settings.instance.correlation.grace_window,
+    ));
+    let http = crate::sources::http_client()?;
+    for source in registry {
+        let overrides = settings.instance.sources.get(&source.info().id);
+        let enabled = overrides
+            .and_then(|o| o.enabled)
+            .unwrap_or(source.info().default_enabled);
+        if !enabled {
+            tracing::info!(source = %source.info().id, "source disabled");
+            continue;
+        }
+        let source: Arc<dyn Source> = match overrides.and_then(|o| o.interval) {
+            Some(interval) => Arc::new(WithInterval::new(source, interval)),
+            None => source,
+        };
+        let scoped: Arc<dyn SourceHttp> = Arc::new(http.scoped(source.info().hosts.clone()));
+        tokio::spawn(schedule(
+            source,
+            scoped,
+            database.clone(),
+            Arc::clone(&correlator),
+        ));
+    }
+    let (store, retention) = (database.clone(), settings.instance.retention.clone());
+    tokio::spawn(async move {
+        loop {
+            match crate::app::retention_pass(&store, clock.as_ref(), &retention).await {
+                Ok(()) => {}
+                Err(error) => tracing::error!(error = %error, "retention pass failed"),
+            }
+            tokio::time::sleep(std::time::Duration::from_hours(24)).await;
+        }
+    });
+    Ok(correlator)
+}
+
+async fn retention_pass(
+    store: &Database,
+    clock: &dyn Clock,
+    retention: &crate::config::RetentionConfig,
+) -> Result<(), String> {
+    let counts =
+        secure_notify_core::retention::run(store, clock.now(), retention.events, retention.dedup)
+            .await
+            .map_err(|e| e.to_string())?;
+    tracing::info!(
+        payloads_expired = counts.payloads_expired,
+        stories_compacted = counts.stories_compacted,
+        stories_deleted = counts.stories_deleted,
+        "retention pass finished"
+    );
+    Ok(())
+}
+
+/// A source with the operator's interval instead of its own.
+struct WithInterval {
+    inner: Arc<dyn Source>,
+    info: SourceInfo,
+}
+
+impl WithInterval {
+    fn new(inner: Arc<dyn Source>, interval: jiff::SignedDuration) -> Self {
+        let mut info = inner.info().clone();
+        info.interval = interval;
+        Self { inner, info }
+    }
+}
+
+impl Source for WithInterval {
+    fn info(&self) -> &SourceInfo {
+        &self.info
+    }
+
+    fn fetch<'a>(
+        &'a self,
+        http: &'a dyn SourceHttp,
+        state: &'a mut SourceState,
+    ) -> BoxFuture<'a, Result<Vec<RawItem>, SourceError>> {
+        self.inner.fetch(http, state)
+    }
+
+    fn normalize(&self, item: &RawItem) -> Result<secure_notify_model::NormalizedEvent, String> {
+        self.inner.normalize(item)
+    }
 }

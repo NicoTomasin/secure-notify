@@ -103,6 +103,7 @@ fn info() -> SourceInfo {
         interval: SignedDuration::from_mins(30),
         mirror: false,
         default_enabled: true,
+        structured: false,
         hosts: Vec::new(),
     }
 }

@@ -43,6 +43,7 @@ impl FeedSource {
             interval,
             mirror: false,
             default_enabled: definition.default_enabled,
+            structured: false,
             hosts: vec![host],
         };
         Ok(Self { definition, info })

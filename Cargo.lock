@@ -1498,6 +1498,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1571,6 +1572,8 @@ dependencies = [
  "jiff",
  "rusqlite",
  "secure-notify-core",
+ "secure-notify-model",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tokio",

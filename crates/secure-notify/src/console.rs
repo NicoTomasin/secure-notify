@@ -11,6 +11,7 @@ use jiff::{SignedDuration, Timestamp};
 use secure_notify_conversation::{
     Attachment, ChatKind, CodeKind, Conversation, Incoming, render_plain,
 };
+use secure_notify_core::correlation::{Correlator, IngestCounts};
 use secure_notify_core::ports::{Clock, InstanceStore};
 use secure_notify_core::subscribers::{EndpointRef, PAIRING_CODE_KEY};
 use secure_notify_core::time::parse_duration;
@@ -77,6 +78,7 @@ fn print(line: &str) {
 pub(crate) async fn run(
     conversation: &Conversation<Database>,
     database: &Database,
+    correlator: &Correlator<Database>,
     clock: &Arc<DevClock>,
     script: Option<&Path>,
 ) -> Result<bool, String> {
@@ -93,7 +95,15 @@ pub(crate) async fn run(
             .await
             .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
         for line in text.lines() {
-            step(conversation, database, clock, &mut session, line).await;
+            step(
+                conversation,
+                database,
+                correlator,
+                clock,
+                &mut session,
+                line,
+            )
+            .await;
         }
     } else {
         let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -102,7 +112,15 @@ pub(crate) async fn run(
             .await
             .map_err(|e| format!("cannot read standard input: {e}"))?
         {
-            step(conversation, database, clock, &mut session, &line).await;
+            step(
+                conversation,
+                database,
+                correlator,
+                clock,
+                &mut session,
+                &line,
+            )
+            .await;
         }
     }
     Ok(!session.failed && !crate::logging::error_logged())
@@ -111,6 +129,7 @@ pub(crate) async fn run(
 async fn step(
     conversation: &Conversation<Database>,
     database: &Database,
+    correlator: &Correlator<Database>,
     clock: &Arc<DevClock>,
     session: &mut Session,
     raw: &str,
@@ -155,7 +174,13 @@ async fn step(
                 }
                 Err(e) => fail(session, raw, &format!("cannot read {path}: {e}")),
             },
-            ("ingest", _) => fail(session, raw, "this directive is not available yet"),
+            ("ingest", path) if !path.is_empty() => match ingest(correlator, path).await {
+                Ok(counts) => print(&format!(
+                    "   ingested: {} new, {} changed, {} unchanged",
+                    counts.new, counts.changed, counts.unchanged
+                )),
+                Err(problem) => fail(session, raw, &problem),
+            },
             _ => fail(session, raw, "unknown or incomplete directive"),
         }
         return;
@@ -234,4 +259,28 @@ async fn substitute(database: &Database, session: &Session, line: &str) -> Resul
 fn fail(session: &mut Session, line: &str, problem: &str) {
     session.failed = true;
     print(&format!("!! step failed: {line}: {problem}"));
+}
+
+/// `:ingest <file>`: normalized events (one object or an array), validated and correlated as new,
+/// non-backfill events (docs/engineering/local-development.md#console-platform).
+async fn ingest(correlator: &Correlator<Database>, path: &str) -> Result<IngestCounts, String> {
+    let text = tokio::fs::read_to_string(path)
+        .await
+        .map_err(|e| format!("cannot read {path}: {e}"))?;
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+    let items = match value {
+        serde_json::Value::Array(items) => items,
+        single => vec![single],
+    };
+    let mut events = Vec::with_capacity(items.len());
+    for item in items {
+        let event = secure_notify_model::parse_event(item.to_string().as_bytes())
+            .map_err(|e| format!("{path}: {e}"))?;
+        events.push(event);
+    }
+    correlator
+        .ingest_events(false, false, events, false)
+        .await
+        .map_err(|e| e.to_string())
 }
