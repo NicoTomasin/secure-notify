@@ -12,3 +12,9 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+secure-notify-model = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
