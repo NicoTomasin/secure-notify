@@ -7,7 +7,7 @@ defined in [../architecture/data-model.md](../architecture/data-model.md#persist
 
 ## Migration model
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Migrations are embedded in the binary, forward-only, and applied at startup.
 - Before applying migrations, the instance writes a consistent backup of the database to the data
@@ -17,7 +17,7 @@ defined in [../architecture/data-model.md](../architecture/data-model.md#persist
 
 ## Writing a migration
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Migrations are SQL files in `crates/storage/migrations/`, named `NNNN_<description>.sql`: a
   zero-padded sequence number with no gaps and a short snake_case description.
@@ -33,7 +33,7 @@ defined in [../architecture/data-model.md](../architecture/data-model.md#persist
 
 ## Changing tables in SQLite
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Changes that SQLite's `ALTER TABLE` does not support (changing a column type or constraint,
   dropping a column used by an index or constraint) follow SQLite's documented table rebuild
@@ -45,7 +45,7 @@ defined in [../architecture/data-model.md](../architecture/data-model.md#persist
 
 ## Data and privacy
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Migrations preserve data. Dropping data that subscribers own (configuration, inventory, watched
   identities) or that deduplication relies on (identifiers, canonical URLs, the delivery ledger; see
@@ -63,7 +63,7 @@ defined in [../architecture/data-model.md](../architecture/data-model.md#persist
 
 ## Testing migrations
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - **Schema snapshot:** a test applies every migration to an empty database and compares the
   resulting schema with a committed snapshot, reviewed like any snapshot (see

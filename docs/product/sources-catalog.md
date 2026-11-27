@@ -53,6 +53,6 @@ free access.
 | Breaches | Free public breach catalogs (e.g. the Have I Been Pwned breach list), official breach notification portals, data breach reporting sites | WASM or declarative |
 | Attacks and ransomware | Public ransomware tracking aggregators, security news outlets (e.g. BleepingComputer, The Record, SecurityWeek, Krebs on Security, The Hacker News, Help Net Security) | declarative |
 | Outages | Status pages with standard JSON APIs or feeds (e.g. GitHub, Cloudflare, Atlassian, Slack), cloud provider status feeds | declarative (`statuspage`, `rss`) |
-| Security releases | Project security release feeds (e.g. Node.js, Bun, Python, PHP, Go, Rust, Kubernetes, OpenSSL, nginx, PostgreSQL), repository release feeds | declarative |
+| Security releases | Project security release feeds (e.g. Node.js, Python, PHP, Go, Rust, Kubernetes, OpenSSL, nginx, PostgreSQL), repository release feeds | declarative |
 | Community signals | Security subreddits, Mastodon hashtags and instances with feeds | declarative |
 | Exposure providers | Free breach lookup APIs for email addresses and domains (e.g. XposedOrNot); paid-only lookup APIs are excluded | native or WASM |

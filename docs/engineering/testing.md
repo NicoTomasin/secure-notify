@@ -20,7 +20,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Test layers
 
-> Status: `Proposed`
+> Status: `Decided`
 
 | Layer | Approach |
 |---|---|
@@ -35,7 +35,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Writing a test
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Every test traces to a documented rule, a reported bug, or an adversarial case from
   [../architecture/security.md](../architecture/security.md#threats-and-mitigations). Its name states
@@ -51,7 +51,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Forbidden test patterns
 
-> Status: `Proposed`
+> Status: `Decided`
 
 | Pattern | Why it is rejected | Instead |
 |---|---|---|
@@ -69,7 +69,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Mutation check
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Every new or changed test MUST be shown to fail when the behavior it protects is broken: break the
   behavior on purpose (invert a condition, remove the fix, change a constant), run the test, confirm
@@ -82,7 +82,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Fixtures
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Fixtures are recorded from the real origin (`plugin record`, see
   [local-development.md](local-development.md#developer-commands)) or copied from public data, such
@@ -101,7 +101,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Snapshots
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Snapshot tests are used for rendering (messages, digests, panel pages), not as a substitute for
   assertions elsewhere.
@@ -111,7 +111,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Determinism
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - Tests MUST NOT reach the network; live-data checks of sources run only in a separate scheduled
   CI job.
@@ -123,7 +123,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Changing existing tests
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - When a test fails, the default assumption is that the code is wrong, not the test.
 - Changing an expected value requires a reason in the commit message or pull request: the doc rule
@@ -133,7 +133,7 @@ snapshots, determinism, and changing existing tests.
 
 ## Coverage
 
-> Status: `Proposed`
+> Status: `Decided`
 
 Coverage percentages are not a goal and are not enforced in CI. Coverage reports MAY be used to find
 documented rules that have no test.

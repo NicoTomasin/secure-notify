@@ -3,7 +3,7 @@
 Every source, regardless of origin or runtime, produces the same normalized event shape. Events
 are grouped into stories, and everything subscriber-specific (endpoints, watches, inventory,
 identities, rules, queue, delivery ledger) hangs off subscribers. Normalization into a common
-model is a core requirement; the concrete shapes below are the current proposal.
+model is a core requirement; each section's status label says how settled its shape is.
 
 ## Normalization requirement
 
@@ -14,7 +14,7 @@ sources, deduplicated, and matched against subscribers' watches, inventory, and 
 
 ## Canonical schema
 
-> Status: `Proposed`
+> Status: `Decided`
 
 - The normalized event is defined once, as Rust types in `crates/model`. The JSON Schema in
   `schemas/` is generated from those types and is the language-neutral contract.
@@ -26,7 +26,7 @@ sources, deduplicated, and matched against subscribers' watches, inventory, and 
 
 ## Normalized event
 
-> Status: `Proposed`
+> Status: `Decided`
 
 Illustrative JSON (a vulnerability event):
 
@@ -126,7 +126,7 @@ Conceptual entities; table names and columns are finalized with the schema.
 
 | Entity | Key fields | Notes |
 |---|---|---|
-| `subscribers` | id, kind (`person`/`team`), role (`admin`/`member`, persons only), timezone, language, active, created_at | See [subscribers.md](subscribers.md). |
+| `subscribers` | id, kind (`person`/`team`), role (`admin`/`member`, persons only), timezone, language, min_severity?, active, created_at | See [subscribers.md](subscribers.md); `min_severity` in [matching-and-rules.md](matching-and-rules.md#minimum-severity). |
 | `endpoints` | id, subscriber_id, platform, address, kind (`private`/`group`/`channel`/`email`/`webhook`), label, primary, verified, active | One subscriber, many endpoints. |
 | `link_codes` | code, subscriber_id, expires_at | Linking additional endpoints. |
 | `invites` | code, created_by, kind (`person`/`team`), expires_at, used_by | Single-use. |

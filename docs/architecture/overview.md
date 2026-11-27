@@ -59,7 +59,7 @@ Sources ──▶ Normalizer ──▶ Correlator ──▶ Enrichers ──▶ 
 
 ## Tech stack
 
-> Status: `Decided` (Rust, SQLite only) / `Proposed` (libraries)
+> Status: `Decided`
 
 | Concern | Choice |
 |---|---|
@@ -84,7 +84,7 @@ Sources ──▶ Normalizer ──▶ Correlator ──▶ Enrichers ──▶ 
 
 ## Repository layout
 
-> Status: `Proposed`
+> Status: `Decided`
 
 ```
 Cargo.toml                    # workspace
@@ -121,7 +121,7 @@ docs/                         # rules: the source of truth
 
 ## Crate dependencies
 
-> Status: `Decided` (ports and adapters; `core` depends on no adapter crate; enforced by CI) / `Proposed` (exact table)
+> Status: `Decided`
 
 The workspace follows a ports-and-adapters structure: `core` holds the domain logic and defines
 traits (ports) for everything it needs from the outside world (storage, HTTP, clock, plugins,
