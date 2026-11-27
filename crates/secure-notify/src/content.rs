@@ -51,7 +51,11 @@ pub(crate) fn verify(dir: &Path) -> Result<usize, String> {
     let mut files = Vec::new();
     read_tree(dir, dir, &mut files)?;
     let taxonomy = taxonomy_files(files.iter().map(|(p, t)| (p.as_str(), t.as_str())));
-    Taxonomy::load(&taxonomy).map_err(|problems| problems.join("\n"))?;
+    let taxonomy = Taxonomy::load(&taxonomy).map_err(|problems| problems.join("\n"))?;
+    feed_definitions(
+        files.iter().map(|(p, t)| (p.as_str(), t.as_str())),
+        &taxonomy,
+    )?;
     Ok(files.len())
 }
 
@@ -84,4 +88,46 @@ pub(crate) fn verify_manifests(dir: &Path) -> Result<usize, String> {
     } else {
         Err(problems.join("\n"))
     }
+}
+
+/// Declarative sources of `files`, given as paths relative to `content/` and text.
+fn feed_definitions<'a>(
+    files: impl Iterator<Item = (&'a str, &'a str)>,
+    taxonomy: &Taxonomy,
+) -> Result<Vec<secure_notify_model::DeclarativeSource>, String> {
+    let mut definitions = Vec::new();
+    let mut problems = Vec::new();
+    for (path, text) in files {
+        let Some(stem) = path
+            .strip_prefix("feeds/")
+            .and_then(|p| p.strip_suffix(".toml"))
+            .filter(|p| !p.contains('/'))
+        else {
+            continue;
+        };
+        match secure_notify_model::load_declarative_source(stem, text) {
+            Ok(definition) => {
+                for entity in &definition.defaults.entities {
+                    if taxonomy.get(entity).is_none() {
+                        problems.push(format!("content/{path}: unknown entity `{entity}`"));
+                    }
+                }
+                definitions.push(definition);
+            }
+            Err(found) => {
+                problems.extend(found.into_iter().map(|p| format!("content/{path}: {p}")))
+            }
+        }
+    }
+    if problems.is_empty() {
+        Ok(definitions)
+    } else {
+        Err(problems.join("\n"))
+    }
+}
+
+/// The declarative sources embedded in the binary.
+pub(crate) fn embedded_feeds() -> Result<Vec<secure_notify_model::DeclarativeSource>, String> {
+    let taxonomy = embedded_taxonomy()?;
+    feed_definitions(EMBEDDED.iter().copied(), &taxonomy)
 }

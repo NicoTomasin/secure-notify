@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "DeclarativeType": {
+      "description": "Declarative source types. Only the feed types are implemented so far.",
+      "oneOf": [
+        {
+          "const": "rss",
+          "description": "An RSS feed.",
+          "type": "string"
+        },
+        {
+          "const": "atom",
+          "description": "An Atom feed.",
+          "type": "string"
+        }
+      ]
+    },
+    "Defaults": {
+      "additionalProperties": false,
+      "description": "Values applied to every event of the source.",
+      "properties": {
+        "entities": {
+          "default": [],
+          "description": "Taxonomy entity IDs.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EventKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Event kind."
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeverityLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Severity level when the item states none."
+        }
+      },
+      "type": "object"
+    },
+    "EventKind": {
+      "description": "Event kinds (docs/product/scope.md#event-kinds).",
+      "oneOf": [
+        {
+          "const": "vulnerability",
+          "description": "A security flaw in software or hardware.",
+          "type": "string"
+        },
+        {
+          "const": "exploit",
+          "description": "A public exploit or proof of concept, or a report of active exploitation.",
+          "type": "string"
+        },
+        {
+          "const": "malicious-package",
+          "description": "A package published with malicious code.",
+          "type": "string"
+        },
+        {
+          "const": "release",
+          "description": "A security or breaking release announcement.",
+          "type": "string"
+        },
+        {
+          "const": "bug",
+          "description": "A critical non-security defect.",
+          "type": "string"
+        },
+        {
+          "const": "breach",
+          "description": "A confirmed or credibly reported data breach or leak.",
+          "type": "string"
+        },
+        {
+          "const": "attack",
+          "description": "A security incident without confirmed data exposure.",
+          "type": "string"
+        },
+        {
+          "const": "outage",
+          "description": "A service disruption.",
+          "type": "string"
+        },
+        {
+          "const": "news",
+          "description": "Other relevant security information.",
+          "type": "string"
+        }
+      ]
+    },
+    "SeverityLevel": {
+      "description": "Severity levels.",
+      "oneOf": [
+        {
+          "const": "critical",
+          "description": "Critical.",
+          "type": "string"
+        },
+        {
+          "const": "high",
+          "description": "High.",
+          "type": "string"
+        },
+        {
+          "const": "medium",
+          "description": "Medium.",
+          "type": "string"
+        },
+        {
+          "const": "low",
+          "description": "Low.",
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Not known.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A declarative source.",
+  "properties": {
+    "default_enabled": {
+      "default": false,
+      "description": "Whether the source is enabled when the operator says nothing.",
+      "type": "boolean"
+    },
+    "defaults": {
+      "$ref": "#/$defs/Defaults",
+      "default": {
+        "entities": []
+      },
+      "description": "Values applied to every event."
+    },
+    "id": {
+      "description": "Source ID: lowercase letters, digits, and `-`; equal to the file name; never changes.",
+      "type": "string"
+    },
+    "interval": {
+      "description": "Schedule (`30m`, `1h`).",
+      "type": "string"
+    },
+    "name": {
+      "description": "Display name.",
+      "type": "string"
+    },
+    "type": {
+      "$ref": "#/$defs/DeclarativeType",
+      "description": "Source type."
+    },
+    "url": {
+      "description": "Feed URL (`https`).",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "type",
+    "url",
+    "interval"
+  ],
+  "title": "Declarative source",
+  "type": "object"
+}

@@ -50,7 +50,7 @@ interval = "30m"
 default_enabled = true
 
 [defaults]
-kind = "vulnerability"
+kind = "release"
 entities = ["tech:node"]
 severity = "high"
 ```
@@ -77,6 +77,12 @@ entities = ["vendor:example"]
 
 - The core applies `defaults`, extracts identifiers and links from content, and tags entities
   through the taxonomy (see [taxonomy.md](taxonomy.md)).
+- Implemented types: `rss` and `atom`. Entries become events with the source's `defaults`; `source_item_id`
+  is the entry ID (`guid` in RSS), the link is the event URL, and conditional requests (ETag,
+  Last-Modified) avoid downloading unchanged feeds.
+- Recorded fixtures of a declarative source live in `content/feeds/fixtures/<id>/`: the bodies
+  written by `plugin record <id>`, an `index.json` mapping each URL to its body, and a provenance
+  `README.md`.
 - Declarative sources that need an API key declare it (`secret = "EXAMPLE_API_KEY"`) and stay
   disabled until the operator provides it.
 

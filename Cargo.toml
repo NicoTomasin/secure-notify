@@ -30,6 +30,8 @@ publish = false
 
 [workspace.dependencies]
 # Workspace crates
+secure-notify-declarative = { path = "crates/declarative" }
+secure-notify-plugin-host = { path = "crates/plugin-host" }
 secure-notify-parser-bun = { path = "plugins/parsers/bun" }
 secure-notify-parser-npm = { path = "plugins/parsers/npm" }
 secure-notify-parser-pnpm = { path = "plugins/parsers/pnpm" }
@@ -39,6 +41,10 @@ secure-notify-model = { path = "crates/model" }
 secure-notify-storage = { path = "crates/storage" }
 
 # Third-party crates
+feed-rs = { version = "2", default-features = false }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "gzip"] }
+url = { version = "2", default-features = false, features = ["std"] }
+wiremock = { version = "0.6" }
 serde-saphyr = { version = "2", default-features = false, features = ["deserialize"] }
 proptest = { version = "1", default-features = false, features = ["std"] }
 fluent-bundle = { version = "0.16", default-features = false }
