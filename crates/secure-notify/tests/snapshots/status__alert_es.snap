@@ -1,0 +1,5 @@
+---
+source: crates/secure-notify/tests/status.rs
+expression: text
+---
+La fuente CISA Known Exploited Vulnerabilities falló 3 veces seguidas. Último error: unexpected response: HTTP 503. Sigue reintentando con espera creciente; mandá /status para ver el detalle.

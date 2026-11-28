@@ -5,11 +5,12 @@
 use std::sync::Arc;
 
 use crate::delivery::DetailsStore;
+use crate::health::{HealthStore, SourceEntry, Status, mirrors};
 use crate::inventory::{Inventory, InventoryStore, Parser};
 use crate::mutes::{MuteStore, Mutes};
 use crate::ports::{Clock, InstanceStore, Random};
 use crate::rules::{RuleStore, Rules};
-use crate::scan::{Mirror, ScanStore};
+use crate::scan::ScanStore;
 use crate::sources::SourceStateStore;
 use crate::subscribers::{SubscriberStore, Subscribers};
 use crate::taxonomy::Taxonomy;
@@ -26,6 +27,7 @@ pub trait Store:
     + DetailsStore
     + ScanStore
     + SourceStateStore
+    + HealthStore
     + Clone
     + Send
     + Sync
@@ -43,6 +45,7 @@ impl<T> Store for T where
         + DetailsStore
         + ScanStore
         + SourceStateStore
+        + HealthStore
         + Clone
         + Send
         + Sync
@@ -62,6 +65,8 @@ pub struct Core<S> {
     pub rules: Rules<S>,
     /// Mutes.
     pub mutes: Mutes<S>,
+    /// Source health and instance counters.
+    pub status: Status<S>,
 }
 
 impl<S: Store> Core<S> {
@@ -72,19 +77,20 @@ impl<S: Store> Core<S> {
         clock: Arc<dyn Clock>,
         random: Arc<dyn Random>,
         parsers: Arc<[Arc<dyn Parser>]>,
-        mirrors: Arc<[Mirror]>,
+        sources: Arc<[SourceEntry]>,
     ) -> Self {
         Self {
             subscribers: Subscribers::new(store.clone(), clock.clone(), random),
             inventory: Inventory::new(
                 store.clone(),
                 parsers,
-                mirrors,
+                mirrors(&sources),
                 taxonomy.clone(),
                 clock.clone(),
             ),
             rules: Rules::new(store.clone()),
             mutes: Mutes::new(store.clone(), clock.clone()),
+            status: Status::new(store.clone(), sources),
             watches: Watches::new(store, taxonomy, clock),
         }
     }

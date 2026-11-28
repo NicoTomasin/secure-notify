@@ -1,0 +1,12 @@
+---
+source: crates/secure-notify/tests/status.rs
+expression: english
+---
+Instance status
+Version 0.0.0-test, with the content embedded in the binary.
+Subscribers: 2 · Stories: 3 · Events: 3 · Queued notifications: 0 · Pending scans: 8
+Sources:
+• OSV (npm): last success 2026-11-27 11:00 UTC · 232471 items
+• CISA Known Exploited Vulnerabilities: 3 failed runs in a row, last at 2026-11-27 11:30 UTC: unexpected response: HTTP 503 · last success 2026-11-27 08:00 UTC · 1808 items
+• Node.js security releases: disabled
+• Example feed: first synchronization pending or in progress

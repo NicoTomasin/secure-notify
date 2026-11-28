@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use secure_notify_conversation::{Conversation, Message, render_plain};
 use secure_notify_core::delivery::{Notice, Outbox};
+use secure_notify_core::health::SourceAlert;
 use secure_notify_core::ports::SendError;
 use secure_notify_core::scan::ScanReport;
 use secure_notify_core::sources::BoxFuture;
@@ -90,6 +91,18 @@ impl Outbox for PlatformOutbox {
     ) -> BoxFuture<'a, Result<(), SendError>> {
         Box::pin(async move {
             let message = self.conversation.render_scan_report(report, language);
+            self.send(endpoint, &message)
+        })
+    }
+
+    fn deliver_alert<'a>(
+        &'a self,
+        endpoint: &'a EndpointRef,
+        language: &'a str,
+        alert: &'a SourceAlert,
+    ) -> BoxFuture<'a, Result<(), SendError>> {
+        Box::pin(async move {
+            let message = self.conversation.render_alert(alert, language);
             self.send(endpoint, &message)
         })
     }

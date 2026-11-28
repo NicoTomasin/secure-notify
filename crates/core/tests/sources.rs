@@ -12,8 +12,9 @@ use std::sync::Mutex;
 use jiff::{SignedDuration, Timestamp};
 use secure_notify_core::ports::{HttpError, HttpRequest, HttpResponse, StoreError};
 use secure_notify_core::sources::{
-    BACKFILL_DONE, BoxFuture, Download, EventSink, FAILURES, FetchOutput, LAST_ERROR, RawItem,
-    Source, SourceError, SourceHttp, SourceInfo, SourceState, SourceStateStore, next_run, run_once,
+    BACKFILL_DONE, BoxFuture, Download, EventSink, FAILURE_STREAK, FAILURES, FetchOutput,
+    LAST_ERROR, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
+    SourceStateStore, next_run, run_once, streak_reached,
 };
 use secure_notify_model::NormalizedEvent;
 use serde_json::json;
@@ -31,6 +32,7 @@ impl SourceHttp for NoHttp {
 }
 
 /// Yields the configured items and moves a cursor, or fails.
+#[derive(Clone)]
 struct FakeSource {
     info: SourceInfo,
     items: Vec<RawItem>,
@@ -292,4 +294,49 @@ async fn withdrawn_items_reported_by_a_source_are_removed() {
     .await
     .unwrap();
     assert_eq!(*memory.withdrawn.lock().unwrap(), ["A-1"]);
+}
+
+#[tokio::test]
+async fn admins_are_told_once_per_failure_streak() {
+    // self-hosting.md#operations: at most once per failure streak.
+    let failing = FakeSource {
+        info: info(),
+        items: Vec::new(),
+        fail: true,
+        withdrawn: Vec::new(),
+    };
+    let working = FakeSource {
+        fail: false,
+        items: vec![item("fake", "A-1")],
+        ..failing.clone()
+    };
+    let memory = Memory::default();
+    let mut told = Vec::new();
+    for (i, source) in [
+        &failing, &failing, &failing, &failing, &working, &failing, &failing, &failing,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let report = run_once(
+            source,
+            &NoHttp,
+            &memory,
+            &memory,
+            now("2026-11-27T10:00:00Z"),
+        )
+        .await
+        .unwrap();
+        if streak_reached(&report) {
+            told.push(i);
+        }
+        if i == 3 {
+            assert_eq!(report.failures, 4);
+        }
+        if i == 4 {
+            assert_eq!(report.failures, 0);
+        }
+    }
+    assert_eq!(told, [2, 7]);
+    assert_eq!(FAILURE_STREAK, 3);
 }

@@ -102,6 +102,11 @@ impl<S: Store> Conversation<S> {
         &self.core.subscribers
     }
 
+    /// What `/about` shows besides the fixed texts.
+    pub(crate) fn about_info(&self) -> &About {
+        &self.about
+    }
+
     /// The translations.
     pub fn i18n(&self) -> &I18n {
         &self.i18n
@@ -167,6 +172,7 @@ impl<S: Store> Conversation<S> {
             "inventory" => self.inventory(&subscriber, &line.args).await?,
             "rules" => self.rules(&subscriber, &line.args).await?,
             "mutes" => self.mutes(&subscriber, &line.args).await?,
+            "status" => self.status(&language).await?,
             "watch" => self.watch(&subscriber, &line.args.join(" ")).await?,
             "unwatch" => self.unwatch(&subscriber, &line.args.join(" ")).await?,
             "watching" => self.watching(&subscriber).await?,
@@ -848,6 +854,6 @@ fn rule_conditions(conditions: &RuleMatch) -> String {
 }
 
 /// Times shown to subscribers; the MVP shows UTC.
-fn format_time(timestamp: Timestamp) -> String {
+pub(crate) fn format_time(timestamp: Timestamp) -> String {
     timestamp.strftime("%Y-%m-%d %H:%M UTC").to_string()
 }

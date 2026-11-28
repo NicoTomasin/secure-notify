@@ -220,3 +220,17 @@ scan-story-exploited = [{ $severity }, exploited] { $title }: { $entries }
 scan-entry-fixed = { $component } { $version }, fixed in { $fixed }
 scan-entry = { $component } { $version }, no fix yet
 scan-entry-unknown = { $component } (version unknown)
+
+## /status
+
+command-status = Source health and instance counters
+status-header = Instance status
+status-version = Version { $version }, with the content embedded in the binary.
+status-stats = Subscribers: { $subscribers } · Stories: { $stories } · Events: { $events } · Queued notifications: { $queued } · Pending scans: { $scans }
+status-sources = Sources:
+status-never = never
+status-source-disabled = { $name }: disabled
+status-source-first-sync = { $name }: first synchronization pending or in progress
+status-source-healthy = { $name }: last success { $success } · { $items } items
+status-source-failing = { $name }: { $failures } failed runs in a row, last at { $failed }: { $error } · last success { $success } · { $items } items
+alert-source-failing = Source { $name } failed { $failures } times in a row. Last error: { $error }. It keeps retrying with backoff; send /status for details.

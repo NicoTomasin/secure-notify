@@ -8,10 +8,12 @@ use secure_notify_conversation::{About, Conversation, I18n};
 use secure_notify_core::app::Core;
 use secure_notify_core::correlation::Correlator;
 use secure_notify_core::delivery::{DispatchCounts, Dispatcher, Outbox};
+use secure_notify_core::health::{Alerter, SourceEntry, mirrors};
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::matching::Matcher;
 use secure_notify_core::ports::{Clock, Random};
-use secure_notify_core::scan::{Mirror, Scanner};
+use secure_notify_core::scan::Scanner;
+use secure_notify_core::sources::HealthObserver;
 use secure_notify_core::sources::{
     BoxFuture, FetchOutput, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
     schedule,
@@ -55,15 +57,11 @@ fn enabled(settings: &Settings, source: &dyn Source) -> bool {
         .unwrap_or(source.info().default_enabled)
 }
 
-/// The enabled mirror sources, which defer initial scans during their first synchronization.
-pub(crate) fn mirrors(settings: &Settings) -> Result<Arc<[Mirror]>, String> {
+/// Every built-in source, with whether the operator enabled it.
+pub(crate) fn source_entries(settings: &Settings) -> Result<Arc<[SourceEntry]>, String> {
     Ok(crate::sources::registry()?
         .iter()
-        .filter(|s| s.info().mirror && enabled(settings, s.as_ref()))
-        .map(|s| Mirror {
-            source: s.info().id.clone(),
-            ecosystems: s.info().ecosystems.clone(),
-        })
+        .map(|s| SourceEntry::new(s.info(), enabled(settings, s.as_ref())))
         .collect())
 }
 
@@ -81,7 +79,7 @@ pub(crate) fn conversation(
         clock,
         Arc::new(OsRandom),
         parsers(),
-        mirrors(settings)?,
+        source_entries(settings)?,
     );
     let about = About {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -174,6 +172,8 @@ pub(crate) fn start_pipeline(
     std::fs::create_dir_all(&temp_dir)
         .map_err(|e| format!("cannot create {}: {e}", temp_dir.display()))?;
     let http = crate::sources::http_client(Some(temp_dir))?;
+    let alerter: Arc<dyn HealthObserver> =
+        Arc::new(Alerter::new(database.clone(), Arc::clone(&outbox)));
     for source in registry {
         let overrides = settings.instance.sources.get(&source.info().id);
         if !enabled(settings, source.as_ref()) {
@@ -190,6 +190,7 @@ pub(crate) fn start_pipeline(
             scoped,
             database.clone(),
             Arc::clone(&correlator),
+            Arc::clone(&alerter),
         ));
     }
     let (store, retention, retention_clock) = (
@@ -210,7 +211,7 @@ pub(crate) fn start_pipeline(
     let scanner = Arc::new(Scanner::new(
         database.clone(),
         Arc::clone(&outbox),
-        mirrors(settings)?,
+        mirrors(&source_entries(settings)?),
         matcher_clock.clone(),
     ));
     let dispatcher = Arc::new(Dispatcher::new(

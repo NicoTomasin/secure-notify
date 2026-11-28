@@ -10,25 +10,14 @@ mod common;
 
 use std::sync::{Arc, Mutex};
 
-use common::{Instance, repository_taxonomy};
-use jiff::SignedDuration;
+use common::Instance;
 use secure_notify_conversation::render_plain;
-use secure_notify_core::correlation::Correlator;
 use secure_notify_core::delivery::{Notice, Outbox};
 use secure_notify_core::ports::SendError;
 use secure_notify_core::scan::{Mirror, ScanReport, ScanStore, Scanner};
-use secure_notify_core::sources::{
-    BACKFILL_DONE, BoxFuture, RawItem, Source, SourceState, SourceStateStore,
-};
+use secure_notify_core::sources::{BACKFILL_DONE, BoxFuture, SourceState, SourceStateStore};
 use secure_notify_core::subscribers::{EndpointRef, SubscriberId};
-use secure_notify_source_osv::OsvSource;
 use secure_notify_storage::Database;
-
-const ADVISORIES: [&str; 3] = [
-    "GHSA-fjxv-7rqg-78g4",
-    "GHSA-jchw-25xp-jwwc",
-    "GHSA-74fj-2j2h-c42q",
-];
 
 /// Records reports instead of sending them.
 struct Captured {
@@ -69,6 +58,15 @@ impl Outbox for Captured {
             self.result.clone()
         })
     }
+
+    fn deliver_alert<'a>(
+        &'a self,
+        _: &'a EndpointRef,
+        _: &'a str,
+        _: &'a secure_notify_core::health::SourceAlert,
+    ) -> BoxFuture<'a, Result<(), SendError>> {
+        Box::pin(async move { self.result.clone() })
+    }
 }
 
 fn osv_mirror() -> Vec<Mirror> {
@@ -76,42 +74,6 @@ fn osv_mirror() -> Vec<Mirror> {
         source: "osv".to_string(),
         ecosystems: vec!["npm".to_string()],
     }]
-}
-
-fn shrinkwrap() -> Vec<u8> {
-    let path = format!(
-        "{}/../../plugins/parsers/npm/fixtures/npm-shrinkwrap-v2.json",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    std::fs::read(path).unwrap()
-}
-
-/// Ingests the fixture advisories as the OSV mirror's backfill.
-async fn backfill(instance: &Instance) {
-    let source = OsvSource::new();
-    let mut events = Vec::new();
-    for id in ADVISORIES {
-        let path = format!(
-            "{}/tests/fixtures/osv/{id}.json",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        let data = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-        let item = RawItem {
-            id: id.to_string(),
-            data,
-        };
-        events.push(source.normalize(&item).unwrap());
-    }
-    let correlator = Correlator::new(
-        instance.database.clone(),
-        Arc::new(repository_taxonomy()),
-        instance.clock.clone(),
-        SignedDuration::from_mins(5),
-    );
-    correlator
-        .ingest_events(true, true, events, true)
-        .await
-        .unwrap();
 }
 
 async fn finish_first_sync(database: &Database) {
@@ -140,12 +102,12 @@ fn titles(report: &ScanReport) -> Vec<String> {
 #[tokio::test]
 async fn the_scan_waits_for_the_first_synchronization_and_then_reports_once() {
     let instance = Instance::with_mirrors(osv_mirror()).paired().await;
-    backfill(&instance).await;
+    instance.backfill_osv_fixtures().await;
     let outbox = Captured::new(Ok(()));
     let scanner = scanner(&instance, outbox.clone(), osv_mirror());
 
     let reply = instance
-        .upload("alice", "npm-shrinkwrap.json", shrinkwrap())
+        .upload("alice", "npm-shrinkwrap.json", common::shrinkwrap())
         .await
         .unwrap();
     assert!(reply.contains("still synchronizing"), "{reply}");
@@ -179,7 +141,7 @@ async fn the_scan_waits_for_the_first_synchronization_and_then_reports_once() {
 
     // The reported stories are in the ledger: a second upload reports nothing new, at once.
     let reply = instance
-        .upload("alice", "npm-shrinkwrap.json", shrinkwrap())
+        .upload("alice", "npm-shrinkwrap.json", common::shrinkwrap())
         .await
         .unwrap();
     assert!(!reply.contains("still synchronizing"), "{reply}");
@@ -203,11 +165,11 @@ async fn the_scan_waits_for_the_first_synchronization_and_then_reports_once() {
 #[tokio::test]
 async fn without_a_mirror_in_its_first_synchronization_the_scan_is_immediate() {
     let instance = Instance::with_admin().await;
-    backfill(&instance).await;
+    instance.backfill_osv_fixtures().await;
     let outbox = Captured::new(Ok(()));
     let scanner = scanner(&instance, outbox.clone(), Vec::new());
     let reply = instance
-        .upload("alice", "npm-shrinkwrap.json", shrinkwrap())
+        .upload("alice", "npm-shrinkwrap.json", common::shrinkwrap())
         .await
         .unwrap();
     assert!(!reply.contains("still synchronizing"), "{reply}");
@@ -221,7 +183,7 @@ async fn a_failed_send_keeps_the_scan_pending() {
     let outbox = Captured::new(Err(SendError::Temporary("timeout".to_string())));
     let scanner = scanner(&instance, outbox.clone(), Vec::new());
     instance
-        .upload("alice", "npm-shrinkwrap.json", shrinkwrap())
+        .upload("alice", "npm-shrinkwrap.json", common::shrinkwrap())
         .await
         .unwrap();
     assert_eq!(scanner.run_once().await.unwrap(), 0);
@@ -234,7 +196,7 @@ async fn a_lost_endpoint_deactivates_the_subscriber_and_its_pending_scans() {
     let outbox = Captured::new(Err(SendError::EndpointGone));
     let scanner = scanner(&instance, outbox.clone(), Vec::new());
     instance
-        .upload("alice", "npm-shrinkwrap.json", shrinkwrap())
+        .upload("alice", "npm-shrinkwrap.json", common::shrinkwrap())
         .await
         .unwrap();
     assert_eq!(scanner.run_once().await.unwrap(), 0);
@@ -244,11 +206,11 @@ async fn a_lost_endpoint_deactivates_the_subscriber_and_its_pending_scans() {
 #[tokio::test]
 async fn exploited_stories_are_marked_in_the_report() {
     let instance = Instance::with_admin().await;
-    backfill(&instance).await;
+    instance.backfill_osv_fixtures().await;
     let outbox = Captured::new(Ok(()));
     let scanner = scanner(&instance, outbox.clone(), Vec::new());
     instance
-        .upload("alice", "npm-shrinkwrap.json", shrinkwrap())
+        .upload("alice", "npm-shrinkwrap.json", common::shrinkwrap())
         .await
         .unwrap();
     scanner.run_once().await.unwrap();

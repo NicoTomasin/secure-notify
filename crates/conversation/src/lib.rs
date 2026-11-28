@@ -11,6 +11,7 @@ mod handler;
 pub mod i18n;
 pub mod message;
 mod notice;
+mod status;
 
 pub use handler::{ATTRIBUTION, About, Attachment, ChatKind, Conversation, Incoming, LICENSE};
 pub use i18n::I18n;

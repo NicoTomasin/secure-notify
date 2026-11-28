@@ -85,10 +85,14 @@ as unset):
 
 > Status: `Proposed`
 
-- `/status` (admin) and the admin pages of the web panel show each source's and plugin's last
-  success, last error, and items ingested; content bundle version; pending capability approvals.
+- `/status` (admin) and the admin pages of the web panel show each source's and plugin's state
+  (disabled, first synchronization pending, healthy, or failing), last success, last error,
+  consecutive failures, and items ingested; the binary and content bundle versions; pending
+  capability approvals; and instance counters (active subscribers, stories, events, queued
+  notifications, pending initial scans).
 - Sources and plugins failing repeatedly are backed off and reported to admins, at most once per
-  failure streak.
+  failure streak: every active admin is told when the consecutive failed runs reach three, and the
+  streak ends with the next successful run.
 - Optional `/healthz`, `/readyz`, and `/metrics` endpoints (see
   [../architecture/web-panel.md](../architecture/web-panel.md)).
 - Retention defaults to one week and is configurable; the rules, including what is kept for

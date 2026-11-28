@@ -124,6 +124,14 @@ pub trait Outbox: Send + Sync {
         language: &'a str,
         report: &'a crate::scan::ScanReport,
     ) -> BoxFuture<'a, Result<(), SendError>>;
+
+    /// Delivers a failure-streak alert to an admin's `endpoint` in `language`.
+    fn deliver_alert<'a>(
+        &'a self,
+        endpoint: &'a EndpointRef,
+        language: &'a str,
+        alert: &'a crate::health::SourceAlert,
+    ) -> BoxFuture<'a, Result<(), SendError>>;
 }
 
 /// Persistence for delivery.

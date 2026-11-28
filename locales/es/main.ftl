@@ -220,3 +220,17 @@ scan-story-exploited = [{ $severity }, explotada] { $title }: { $entries }
 scan-entry-fixed = { $component } { $version }, corregido en { $fixed }
 scan-entry = { $component } { $version }, todavía sin corrección
 scan-entry-unknown = { $component } (versión desconocida)
+
+## /status
+
+command-status = Estado de las fuentes y contadores de la instancia
+status-header = Estado de la instancia
+status-version = Versión { $version }, con el contenido incluido en el binario.
+status-stats = Suscriptores: { $subscribers } · Historias: { $stories } · Eventos: { $events } · Notificaciones en cola: { $queued } · Escaneos pendientes: { $scans }
+status-sources = Fuentes:
+status-never = nunca
+status-source-disabled = { $name }: deshabilitada
+status-source-first-sync = { $name }: primera sincronización pendiente o en curso
+status-source-healthy = { $name }: último éxito { $success } · { $items } ítems
+status-source-failing = { $name }: { $failures } ejecuciones fallidas seguidas, la última { $failed }: { $error } · último éxito { $success } · { $items } ítems
+alert-source-failing = La fuente { $name } falló { $failures } veces seguidas. Último error: { $error }. Sigue reintentando con espera creciente; mandá /status para ver el detalle.
