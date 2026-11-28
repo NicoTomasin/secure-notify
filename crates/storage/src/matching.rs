@@ -24,7 +24,10 @@ fn placeholders(n: usize) -> String {
     vec!["?"; n].join(", ")
 }
 
-fn story_facts(conn: &Connection, story: i64) -> Result<Option<StoryFacts>, StorageError> {
+pub(crate) fn story_facts(
+    conn: &Connection,
+    story: i64,
+) -> Result<Option<StoryFacts>, StorageError> {
     let row = conn.query_row(
         "SELECT kind, severity_level, exploited, exploit_available, fix_available, epss_score, \
          eligible_at, updated_at FROM stories WHERE id = ?1",
@@ -91,7 +94,7 @@ fn story_facts(conn: &Connection, story: i64) -> Result<Option<StoryFacts>, Stor
     }))
 }
 
-fn candidates(
+pub(crate) fn candidates(
     conn: &Connection,
     story: i64,
     facts: &StoryFacts,

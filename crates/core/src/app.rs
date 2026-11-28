@@ -9,6 +9,8 @@ use crate::inventory::{Inventory, InventoryStore, Parser};
 use crate::mutes::{MuteStore, Mutes};
 use crate::ports::{Clock, InstanceStore, Random};
 use crate::rules::{RuleStore, Rules};
+use crate::scan::{Mirror, ScanStore};
+use crate::sources::SourceStateStore;
 use crate::subscribers::{SubscriberStore, Subscribers};
 use crate::taxonomy::Taxonomy;
 use crate::watches::{WatchStore, Watches};
@@ -22,6 +24,8 @@ pub trait Store:
     + RuleStore
     + MuteStore
     + DetailsStore
+    + ScanStore
+    + SourceStateStore
     + Clone
     + Send
     + Sync
@@ -37,6 +41,8 @@ impl<T> Store for T where
         + RuleStore
         + MuteStore
         + DetailsStore
+        + ScanStore
+        + SourceStateStore
         + Clone
         + Send
         + Sync
@@ -66,10 +72,17 @@ impl<S: Store> Core<S> {
         clock: Arc<dyn Clock>,
         random: Arc<dyn Random>,
         parsers: Arc<[Arc<dyn Parser>]>,
+        mirrors: Arc<[Mirror]>,
     ) -> Self {
         Self {
             subscribers: Subscribers::new(store.clone(), clock.clone(), random),
-            inventory: Inventory::new(store.clone(), parsers, taxonomy.clone(), clock.clone()),
+            inventory: Inventory::new(
+                store.clone(),
+                parsers,
+                mirrors,
+                taxonomy.clone(),
+                clock.clone(),
+            ),
             rules: Rules::new(store.clone()),
             mutes: Mutes::new(store.clone(), clock.clone()),
             watches: Watches::new(store, taxonomy, clock),

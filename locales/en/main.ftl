@@ -200,3 +200,23 @@ details-sources = Sources: { $sources }
 details-affected = Affected: { $component } (fixed in { $fixed })
 details-affected-unfixed = Affected: { $component } (no fix yet)
 details-related = Related: { $title }
+
+## Initial scan
+
+upload-scan-deferred = Vulnerability data is still synchronizing for the first time. The initial scan report will follow when it completes.
+scan-none = Initial scan of { $entries ->
+    [one] one entry
+   *[other] { $entries } entries
+}: no known issues that were not already reported to you.
+scan-header = Initial scan of { $entries ->
+    [one] one entry
+   *[other] { $entries } entries
+}: { $count ->
+    [one] one known issue not reported to you before.
+   *[other] { $count } known issues not reported to you before.
+}
+scan-story = [{ $severity }] { $title }: { $entries }
+scan-story-exploited = [{ $severity }, exploited] { $title }: { $entries }
+scan-entry-fixed = { $component } { $version }, fixed in { $fixed }
+scan-entry = { $component } { $version }, no fix yet
+scan-entry-unknown = { $component } (version unknown)

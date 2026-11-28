@@ -58,6 +58,9 @@ pub struct SourceInfo {
     pub interval: SignedDuration,
     /// Whether the source mirrors a whole database (exempt from retention).
     pub mirror: bool,
+    /// Purl types a mirror covers (`npm`); its first synchronization defers initial scans of
+    /// entries of those types (docs/architecture/inventory.md#initial-scan-before-the-first-synchronization).
+    pub ecosystems: Vec<String>,
     /// Whether it is enabled when the operator says nothing.
     pub default_enabled: bool,
     /// Whether it is a structured database (its titles win over feeds and news).

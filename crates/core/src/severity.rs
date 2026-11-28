@@ -9,7 +9,7 @@ use secure_notify_model::{
 };
 
 /// Rank used to compare levels; `unknown` is the lowest stored level.
-fn rank(level: SeverityLevel) -> u8 {
+pub fn rank(level: SeverityLevel) -> u8 {
     match level {
         SeverityLevel::Unknown => 0,
         SeverityLevel::Low => 1,

@@ -88,6 +88,9 @@ pub struct PluginManifest {
     /// Whether the source mirrors a whole database (exempt from retention).
     #[serde(default)]
     pub mirror: bool,
+    /// Purl types (`npm`) a mirror covers; required for mirrors, only for mirrors.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ecosystems: Vec<String>,
     /// Declared capabilities.
     #[serde(default)]
     pub capabilities: Capabilities,
@@ -144,6 +147,9 @@ pub fn load_manifest(
     if manifest.mirror && manifest.kind != PluginKind::Source {
         problems.push("only sources can set `mirror`".to_string());
     }
+    if manifest.mirror == manifest.ecosystems.is_empty() {
+        problems.push("mirrors, and only mirrors, list the `ecosystems` they cover".to_string());
+    }
     if problems.is_empty() {
         Ok(manifest)
     } else {
@@ -187,7 +193,30 @@ mod tests {
                 &format!("{PARSER}color = \"red\"\n"),
                 "unknown field",
             ),
+            (
+                "sources",
+                "npm",
+                &format!(
+                    "{}mirror = true\n",
+                    PARSER.replace("\"parser\"", "\"source\"")
+                ),
+                "list the `ecosystems`",
+            ),
+            (
+                "sources",
+                "npm",
+                &format!(
+                    "{}ecosystems = [\"npm\"]\n",
+                    PARSER.replace("\"parser\"", "\"source\"")
+                ),
+                "list the `ecosystems`",
+            ),
         ];
+        let mirror = format!(
+            "{}mirror = true\necosystems = [\"npm\"]\n",
+            PARSER.replace("\"parser\"", "\"source\"")
+        );
+        assert!(load_manifest("sources", "npm", &mirror).is_ok());
         for (directory, dir_name, text, expected) in cases {
             let problems = load_manifest(directory, dir_name, text).unwrap_err();
             assert!(

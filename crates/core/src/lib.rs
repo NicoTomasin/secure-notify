@@ -16,6 +16,7 @@ pub mod mutes;
 pub mod ports;
 pub mod retention;
 pub mod rules;
+pub mod scan;
 pub mod secret;
 pub mod severity;
 pub mod sources;

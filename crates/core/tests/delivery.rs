@@ -115,6 +115,15 @@ impl Outbox for FakeOutbox {
             self.result.clone()
         })
     }
+
+    fn deliver_report<'a>(
+        &'a self,
+        _: &'a EndpointRef,
+        _: &'a str,
+        _: &'a secure_notify_core::scan::ScanReport,
+    ) -> BoxFuture<'a, Result<(), SendError>> {
+        Box::pin(async move { self.result.clone() })
+    }
 }
 
 fn story(exploited: bool) -> StoryView {

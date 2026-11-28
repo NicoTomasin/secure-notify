@@ -11,6 +11,7 @@ use secure_notify_core::delivery::{DispatchCounts, Dispatcher, Outbox};
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::matching::Matcher;
 use secure_notify_core::ports::{Clock, Random};
+use secure_notify_core::scan::{Mirror, Scanner};
 use secure_notify_core::sources::{
     BoxFuture, FetchOutput, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
     schedule,
@@ -44,6 +45,28 @@ pub(crate) fn parsers() -> Arc<[Arc<dyn Parser>]> {
     ])
 }
 
+/// Whether a source runs, from `[sources.<id>] enabled` or its default.
+fn enabled(settings: &Settings, source: &dyn Source) -> bool {
+    settings
+        .instance
+        .sources
+        .get(&source.info().id)
+        .and_then(|o| o.enabled)
+        .unwrap_or(source.info().default_enabled)
+}
+
+/// The enabled mirror sources, which defer initial scans during their first synchronization.
+pub(crate) fn mirrors(settings: &Settings) -> Result<Arc<[Mirror]>, String> {
+    Ok(crate::sources::registry()?
+        .iter()
+        .filter(|s| s.info().mirror && enabled(settings, s.as_ref()))
+        .map(|s| Mirror {
+            source: s.info().id.clone(),
+            ecosystems: s.info().ecosystems.clone(),
+        })
+        .collect())
+}
+
 /// Builds the conversation layer over the database.
 pub(crate) fn conversation(
     settings: &Settings,
@@ -58,6 +81,7 @@ pub(crate) fn conversation(
         clock,
         Arc::new(OsRandom),
         parsers(),
+        mirrors(settings)?,
     );
     let about = About {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -91,6 +115,8 @@ pub(crate) struct Pipeline {
     pub(crate) correlator: Arc<Correlator<Database>>,
     /// Queues stories for the subscribers they concern.
     pub(crate) matcher: Arc<Matcher<Database>>,
+    /// Runs pending initial scans.
+    pub(crate) scanner: Arc<Scanner<Database>>,
     /// Sends due notifications.
     pub(crate) dispatcher: Arc<Dispatcher<Database>>,
 }
@@ -102,6 +128,11 @@ impl Pipeline {
             Ok(0) => {}
             Ok(stories) => tracing::info!(stories, "stories matched"),
             Err(error) => tracing::error!(error = %error, "matching failed"),
+        }
+        match self.scanner.run_once().await {
+            Ok(0) => {}
+            Ok(reports) => tracing::info!(reports, "initial scans reported"),
+            Err(error) => tracing::error!(error = %error, "initial scan failed"),
         }
         match self.dispatcher.run_once().await {
             Ok(counts) if counts == DispatchCounts::default() => {}
@@ -145,10 +176,7 @@ pub(crate) fn start_pipeline(
     let http = crate::sources::http_client(Some(temp_dir))?;
     for source in registry {
         let overrides = settings.instance.sources.get(&source.info().id);
-        let enabled = overrides
-            .and_then(|o| o.enabled)
-            .unwrap_or(source.info().default_enabled);
-        if !enabled {
+        if !enabled(settings, source.as_ref()) {
             tracing::info!(source = %source.info().id, "source disabled");
             continue;
         }
@@ -179,6 +207,12 @@ pub(crate) fn start_pipeline(
             tokio::time::sleep(std::time::Duration::from_hours(24)).await;
         }
     });
+    let scanner = Arc::new(Scanner::new(
+        database.clone(),
+        Arc::clone(&outbox),
+        mirrors(settings)?,
+        matcher_clock.clone(),
+    ));
     let dispatcher = Arc::new(Dispatcher::new(
         database.clone(),
         outbox,
@@ -188,6 +222,7 @@ pub(crate) fn start_pipeline(
     let pipeline = Arc::new(Pipeline {
         correlator,
         matcher,
+        scanner,
         dispatcher,
     });
     let background = Arc::clone(&pipeline);

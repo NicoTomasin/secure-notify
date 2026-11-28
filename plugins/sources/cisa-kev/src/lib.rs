@@ -34,6 +34,7 @@ impl KevSource {
                 name: "CISA Known Exploited Vulnerabilities".to_string(),
                 interval: jiff::SignedDuration::from_hours(1),
                 mirror: false,
+                ecosystems: Vec::new(),
                 default_enabled: true,
                 structured: true,
                 hosts: vec!["www.cisa.gov".to_string()],

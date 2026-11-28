@@ -2,7 +2,7 @@
 
 //! The queue, the delivery ledger, delivery attempts, and endpoint deactivation.
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use secure_notify_core::correlation::StoryId;
 use secure_notify_core::delivery::{DeliveryStore, Prepared, QueueItem, StoryView};
 use secure_notify_core::matching::{NoticeKind, Reason, Snapshot};
@@ -67,94 +67,14 @@ impl DeliveryStore for Database {
         let (story, subscriber) = (item.story.0, item.subscriber.0);
         Ok(self
             .read(move |conn| {
-                let row = conn
-                    .query_row(
-                        "SELECT kind, title, url, severity_level, exploited, exploit_available, \
-                         fix_available, cvss_version, cvss_score, epss_score, summary \
-                         FROM stories WHERE id = ?1",
-                        [story],
-                        |r| {
-                            Ok((
-                                r.get::<_, String>(0)?,
-                                r.get::<_, String>(1)?,
-                                r.get::<_, Option<String>>(2)?,
-                                r.get::<_, String>(3)?,
-                                r.get::<_, bool>(4)?,
-                                r.get::<_, bool>(5)?,
-                                r.get::<_, bool>(6)?,
-                                r.get::<_, Option<String>>(7)?,
-                                r.get::<_, Option<f64>>(8)?,
-                                r.get::<_, Option<f64>>(9)?,
-                                r.get::<_, Option<String>>(10)?,
-                            ))
-                        },
-                    )
-                    .optional()?;
-                let Some((kind, title, url, level, exploited, exploit_available, fix, cv, cs, epss, summary)) =
-                    row
-                else {
+                let Some(view) = story_view(conn, story)? else {
                     return Ok(None);
                 };
-                let mut stmt = conn.prepare(
-                    "SELECT entity_id FROM story_entities WHERE story_id = ?1 ORDER BY entity_id",
-                )?;
-                let entities: Vec<String> = stmt
-                    .query_map([story], |r| r.get(0))?
-                    .collect::<Result<_, _>>()?;
-                let sources: i64 = conn.query_row(
-                    "SELECT count(DISTINCT source) FROM events WHERE story_id = ?1",
-                    [story],
-                    |r| r.get(0),
-                )?;
-                let delivered: Option<String> = conn
-                    .query_row(
-                        "SELECT snapshot FROM deliveries WHERE subscriber_id = ?1 AND story_id = ?2 \
-                         ORDER BY id DESC LIMIT 1",
-                        params![subscriber, story],
-                        |r| r.get(0),
-                    )
-                    .optional()?;
-                let endpoint = conn
-                    .query_row(
-                        "SELECT id, platform, address FROM endpoints \
-                         WHERE subscriber_id = ?1 AND active = 1 ORDER BY is_primary DESC, id LIMIT 1",
-                        [subscriber],
-                        |r| {
-                            Ok((
-                                r.get::<_, i64>(0)?,
-                                EndpointRef {
-                                    platform: r.get(1)?,
-                                    address: r.get(2)?,
-                                },
-                            ))
-                        },
-                    )
-                    .optional()?;
-                let language: String = conn.query_row(
-                    "SELECT language FROM subscribers WHERE id = ?1",
-                    [subscriber],
-                    |r| r.get(0),
-                )?;
+                let delivered = last_snapshot(conn, subscriber, story)?;
+                let (endpoint, language) = recipient(conn, subscriber)?;
                 Ok(Some(Prepared {
-                    story: StoryView {
-                        id: StoryId(story),
-                        kind: EventKind::parse(&kind).ok_or_else(|| corrupt(&kind))?,
-                        title,
-                        url,
-                        severity: SeverityLevel::parse(&level).ok_or_else(|| corrupt(&level))?,
-                        exploited,
-                        exploit_available,
-                        fix_available: fix,
-                        cvss: cv.zip(cs),
-                        epss,
-                        summary,
-                        entities,
-                        sources: usize::try_from(sources).unwrap_or(0),
-                    },
-                    delivered: delivered
-                        .map(|s| serde_json::from_str::<Snapshot>(&s))
-                        .transpose()
-                        .map_err(corrupt)?,
+                    story: view,
+                    delivered,
                     endpoint,
                     language,
                 }))
@@ -384,4 +304,111 @@ impl secure_notify_core::delivery::DetailsStore for Database {
             })
             .await?)
     }
+}
+
+/// A story as shown in notifications and reports.
+pub(crate) fn story_view(conn: &Connection, story: i64) -> Result<Option<StoryView>, StorageError> {
+    let row = conn
+        .query_row(
+            "SELECT kind, title, url, severity_level, exploited, exploit_available, \
+             fix_available, cvss_version, cvss_score, epss_score, summary \
+             FROM stories WHERE id = ?1",
+            [story],
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, bool>(4)?,
+                    r.get::<_, bool>(5)?,
+                    r.get::<_, bool>(6)?,
+                    r.get::<_, Option<String>>(7)?,
+                    r.get::<_, Option<f64>>(8)?,
+                    r.get::<_, Option<f64>>(9)?,
+                    r.get::<_, Option<String>>(10)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((kind, title, url, level, exploited, exploit_available, fix, cv, cs, epss, summary)) =
+        row
+    else {
+        return Ok(None);
+    };
+    let mut stmt = conn
+        .prepare("SELECT entity_id FROM story_entities WHERE story_id = ?1 ORDER BY entity_id")?;
+    let entities: Vec<String> = stmt
+        .query_map([story], |r| r.get(0))?
+        .collect::<Result<_, _>>()?;
+    let sources: i64 = conn.query_row(
+        "SELECT count(DISTINCT source) FROM events WHERE story_id = ?1",
+        [story],
+        |r| r.get(0),
+    )?;
+    Ok(Some(StoryView {
+        id: StoryId(story),
+        kind: EventKind::parse(&kind).ok_or_else(|| corrupt(&kind))?,
+        title,
+        url,
+        severity: SeverityLevel::parse(&level).ok_or_else(|| corrupt(&level))?,
+        exploited,
+        exploit_available,
+        fix_available: fix,
+        cvss: cv.zip(cs),
+        epss,
+        summary,
+        entities,
+        sources: usize::try_from(sources).unwrap_or(0),
+    }))
+}
+
+/// The last snapshot delivered to a subscriber for a story.
+fn last_snapshot(
+    conn: &Connection,
+    subscriber: i64,
+    story: i64,
+) -> Result<Option<Snapshot>, StorageError> {
+    let delivered: Option<String> = conn
+        .query_row(
+            "SELECT snapshot FROM deliveries WHERE subscriber_id = ?1 AND story_id = ?2 \
+             ORDER BY id DESC LIMIT 1",
+            params![subscriber, story],
+            |r| r.get(0),
+        )
+        .optional()?;
+    delivered
+        .map(|s| serde_json::from_str::<Snapshot>(&s))
+        .transpose()
+        .map_err(corrupt)
+}
+
+/// The endpoint notifications go to (the primary active one, else the oldest active one) and the
+/// subscriber's language.
+pub(crate) fn recipient(
+    conn: &Connection,
+    subscriber: i64,
+) -> Result<(Option<(i64, EndpointRef)>, String), StorageError> {
+    let endpoint = conn
+        .query_row(
+            "SELECT id, platform, address FROM endpoints \
+             WHERE subscriber_id = ?1 AND active = 1 ORDER BY is_primary DESC, id LIMIT 1",
+            [subscriber],
+            |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    EndpointRef {
+                        platform: r.get(1)?,
+                        address: r.get(2)?,
+                    },
+                ))
+            },
+        )
+        .optional()?;
+    let language: String = conn.query_row(
+        "SELECT language FROM subscribers WHERE id = ?1",
+        [subscriber],
+        |r| r.get(0),
+    )?;
+    Ok((endpoint, language))
 }

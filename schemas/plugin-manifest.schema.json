@@ -99,6 +99,13 @@
       "description": "Whether the plugin is enabled when the operator says nothing.",
       "type": "boolean"
     },
+    "ecosystems": {
+      "description": "Purl types (`npm`) a mirror covers; required for mirrors, only for mirrors.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "id": {
       "description": "Plugin ID: lowercase ASCII letters, digits, and `-`; equal to its directory name.",
       "type": "string"

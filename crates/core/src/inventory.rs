@@ -14,6 +14,8 @@ use std::time::Duration;
 use jiff::Timestamp;
 
 use crate::ports::{Clock, StoreError};
+use crate::scan::{Mirror, ScanStore, syncing_ecosystems, waits};
+use crate::sources::SourceStateStore;
 use crate::subscribers::SubscriberId;
 use crate::taxonomy::Taxonomy;
 use crate::watches::{WatchStore, Watches};
@@ -129,6 +131,8 @@ pub enum UploadOutcome {
         technologies: Vec<String>,
         /// The distinct components and versions of the file, for the initial scan.
         components: Vec<ParsedComponent>,
+        /// Whether the initial scan waits for a mirror's first synchronization.
+        deferred: bool,
     },
     /// No parser handles this file name.
     Unsupported,
@@ -157,6 +161,7 @@ pub enum AddOutcome {
 pub struct Inventory<S> {
     store: S,
     parsers: Arc<[Arc<dyn Parser>]>,
+    mirrors: Arc<[Mirror]>,
     taxonomy: Arc<Taxonomy>,
     clock: Arc<dyn Clock>,
 }
@@ -166,17 +171,19 @@ fn base_name(filename: &str) -> &str {
     filename.rsplit(['/', '\\']).next().unwrap_or(filename)
 }
 
-impl<S: InventoryStore + WatchStore> Inventory<S> {
-    /// Creates the service.
+impl<S: InventoryStore + WatchStore + ScanStore + SourceStateStore> Inventory<S> {
+    /// Creates the service; `mirrors` are the enabled mirror sources.
     pub fn new(
         store: S,
         parsers: Arc<[Arc<dyn Parser>]>,
+        mirrors: Arc<[Mirror]>,
         taxonomy: Arc<Taxonomy>,
         clock: Arc<dyn Clock>,
     ) -> Self {
         Self {
             store,
             parsers,
+            mirrors,
             taxonomy,
             clock,
         }
@@ -249,10 +256,17 @@ impl<S: InventoryStore + WatchStore> Inventory<S> {
             .merge_inventory(subscriber, components.clone(), self.clock.now())
             .await?;
         watches.derive(subscriber, &technologies).await?;
+        // The initial scan runs in the pipeline, now or after the mirror's first synchronization.
+        let syncing = syncing_ecosystems(&self.store, &self.mirrors).await?;
+        let deferred = components.iter().any(|c| waits(c, &syncing));
+        self.store
+            .add_pending_scans(subscriber, components.clone(), self.clock.now())
+            .await?;
         Ok(UploadOutcome::Merged {
             counts,
             technologies,
             components,
+            deferred,
         })
     }
 
