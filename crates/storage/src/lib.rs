@@ -11,6 +11,7 @@ mod correlation;
 mod database;
 mod instance;
 mod inventory;
+mod matching;
 mod migrations;
 mod retention;
 mod source_state;

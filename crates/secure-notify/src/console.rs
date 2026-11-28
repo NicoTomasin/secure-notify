@@ -11,7 +11,9 @@ use jiff::{SignedDuration, Timestamp};
 use secure_notify_conversation::{
     Attachment, ChatKind, CodeKind, Conversation, Incoming, render_plain,
 };
-use secure_notify_core::correlation::{Correlator, IngestCounts};
+use secure_notify_core::correlation::IngestCounts;
+
+use crate::app::Pipeline;
 use secure_notify_core::ports::{Clock, InstanceStore};
 use secure_notify_core::subscribers::{EndpointRef, PAIRING_CODE_KEY};
 use secure_notify_core::time::parse_duration;
@@ -78,7 +80,7 @@ fn print(line: &str) {
 pub(crate) async fn run(
     conversation: &Conversation<Database>,
     database: &Database,
-    correlator: &Correlator<Database>,
+    pipeline: &Pipeline,
     clock: &Arc<DevClock>,
     script: Option<&Path>,
 ) -> Result<bool, String> {
@@ -95,15 +97,8 @@ pub(crate) async fn run(
             .await
             .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
         for line in text.lines() {
-            step(
-                conversation,
-                database,
-                correlator,
-                clock,
-                &mut session,
-                line,
-            )
-            .await;
+            step(conversation, database, pipeline, clock, &mut session, line).await;
+            pipeline.settle().await;
         }
     } else {
         let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -112,15 +107,8 @@ pub(crate) async fn run(
             .await
             .map_err(|e| format!("cannot read standard input: {e}"))?
         {
-            step(
-                conversation,
-                database,
-                correlator,
-                clock,
-                &mut session,
-                &line,
-            )
-            .await;
+            step(conversation, database, pipeline, clock, &mut session, &line).await;
+            pipeline.settle().await;
         }
     }
     Ok(!session.failed && !crate::logging::error_logged())
@@ -129,7 +117,7 @@ pub(crate) async fn run(
 async fn step(
     conversation: &Conversation<Database>,
     database: &Database,
-    correlator: &Correlator<Database>,
+    pipeline: &Pipeline,
     clock: &Arc<DevClock>,
     session: &mut Session,
     raw: &str,
@@ -174,7 +162,7 @@ async fn step(
                 }
                 Err(e) => fail(session, raw, &format!("cannot read {path}: {e}")),
             },
-            ("ingest", path) if !path.is_empty() => match ingest(correlator, path).await {
+            ("ingest", path) if !path.is_empty() => match ingest(pipeline, path).await {
                 Ok(counts) => print(&format!(
                     "   ingested: {} new, {} changed, {} unchanged",
                     counts.new, counts.changed, counts.unchanged
@@ -263,7 +251,7 @@ fn fail(session: &mut Session, line: &str, problem: &str) {
 
 /// `:ingest <file>`: normalized events (one object or an array), validated and correlated as new,
 /// non-backfill events (docs/engineering/local-development.md#console-platform).
-async fn ingest(correlator: &Correlator<Database>, path: &str) -> Result<IngestCounts, String> {
+async fn ingest(pipeline: &Pipeline, path: &str) -> Result<IngestCounts, String> {
     let text = tokio::fs::read_to_string(path)
         .await
         .map_err(|e| format!("cannot read {path}: {e}"))?;
@@ -279,7 +267,8 @@ async fn ingest(correlator: &Correlator<Database>, path: &str) -> Result<IngestC
             .map_err(|e| format!("{path}: {e}"))?;
         events.push(event);
     }
-    correlator
+    pipeline
+        .correlator
         .ingest_events(false, false, events, false)
         .await
         .map_err(|e| e.to_string())

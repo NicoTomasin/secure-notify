@@ -43,6 +43,7 @@ secure-notify-conversation = { path = "crates/conversation" }
 secure-notify-core = { path = "crates/core" }
 secure-notify-model = { path = "crates/model" }
 secure-notify-storage = { path = "crates/storage" }
+secure-notify-versions = { path = "crates/versions" }
 
 # Third-party crates
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }

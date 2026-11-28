@@ -187,11 +187,11 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
             let clock = Arc::new(console::DevClock::default());
             let conversation = app::conversation(settings, database.clone(), clock.clone())?;
             app::announce_pairing_code(&conversation).await?;
-            let correlator = app::start_pipeline(settings, &database, clock.clone())?;
+            let pipeline = app::start_pipeline(settings, &database, clock.clone())?;
             let ok = console::run(
                 &conversation,
                 &database,
-                &correlator,
+                &pipeline,
                 &clock,
                 script.as_deref(),
             )
