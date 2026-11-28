@@ -52,6 +52,7 @@ impl OsvSource {
                 name: "OSV (npm)".to_string(),
                 interval: jiff::SignedDuration::from_hours(1),
                 mirror: true,
+                ecosystems: vec!["npm".to_string()],
                 default_enabled: true,
                 structured: true,
                 hosts: vec!["osv-vulnerabilities.storage.googleapis.com".to_string()],

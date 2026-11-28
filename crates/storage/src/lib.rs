@@ -15,6 +15,7 @@ mod inventory;
 mod matching;
 mod migrations;
 mod retention;
+mod scan;
 mod source_state;
 mod subscribers;
 mod time;

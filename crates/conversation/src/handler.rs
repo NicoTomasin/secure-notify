@@ -337,6 +337,7 @@ impl<S: Store> Conversation<S> {
             UploadOutcome::Merged {
                 counts,
                 technologies,
+                deferred,
                 ..
             } => {
                 values.set("added", counts.added);
@@ -356,6 +357,9 @@ impl<S: Store> Conversation<S> {
                     let mut tech = FluentArgs::new();
                     tech.set("technologies", names.join(", "));
                     lines.push(self.i18n.text(language, "upload-technologies", Some(&tech)));
+                }
+                if deferred {
+                    lines.push(self.i18n.text(language, "upload-scan-deferred", None));
                 }
                 return Ok(Message::text(lines));
             }

@@ -61,6 +61,26 @@ pub fn evaluate(affected: &Affected, version: &str) -> Evaluation {
     }
 }
 
+/// The fixed versions of `affected` that are later than `version`: the upgrades that matter for
+/// an entry. All fixed versions when the ordering is unknown or a version cannot be parsed.
+pub fn fixes_for(affected: &Affected, version: &str) -> Vec<String> {
+    let Some(parse) = affected.component.purl.as_deref().and_then(ordering_for) else {
+        return affected.fixed.clone();
+    };
+    let Some(installed) = parse(version) else {
+        return affected.fixed.clone();
+    };
+    let mut later = Vec::new();
+    for fixed in &affected.fixed {
+        match parse(fixed) {
+            Some(f) if f <= installed => {}
+            Some(_) => later.push(fixed.clone()),
+            None => return affected.fixed.clone(),
+        }
+    }
+    later
+}
+
 /// The OSV evaluation of one range: events sorted by version; `introduced` opens the range,
 /// `fixed` closes it at that version, `last_affected` closes it after that version, and `limit`
 /// bounds the whole range. `None` when an event version cannot be parsed.

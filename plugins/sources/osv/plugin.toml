@@ -11,6 +11,7 @@ license = "AGPL-3.0-or-later"
 interval = "1h"
 default_enabled = true
 mirror = true
+ecosystems = ["npm"]
 
 [capabilities]
 hosts = ["osv-vulnerabilities.storage.googleapis.com"]

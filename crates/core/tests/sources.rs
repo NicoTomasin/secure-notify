@@ -116,6 +116,7 @@ fn info() -> SourceInfo {
         name: "Fake".to_string(),
         interval: SignedDuration::from_mins(30),
         mirror: false,
+        ecosystems: Vec::new(),
         default_enabled: true,
         structured: false,
         hosts: Vec::new(),

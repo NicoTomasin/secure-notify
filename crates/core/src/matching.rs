@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use jiff::Timestamp;
 use secure_notify_model::{Affected, EventKind, SeverityLevel};
-use secure_notify_versions::{Evaluation, evaluate};
+use secure_notify_versions::{Evaluation, evaluate, fixes_for};
 use serde::{Deserialize, Serialize};
 
 use crate::correlation::StoryId;
@@ -354,7 +354,10 @@ pub fn relevance(story_id: StoryId, story: &StoryFacts, candidate: &Candidate) -
             let entry = MatchedEntry {
                 component: component.to_string(),
                 version: version.clone(),
-                fixed: affected.fixed.clone(),
+                fixed: match version {
+                    Some(v) => fixes_for(affected, v),
+                    None => affected.fixed.clone(),
+                },
             };
             match version.as_deref().map(|v| evaluate(affected, v)) {
                 Some(Evaluation::Affected) => exact.push(entry),

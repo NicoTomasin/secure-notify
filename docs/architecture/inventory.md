@@ -70,9 +70,13 @@ uses locally mirrored data, so the inventory never leaves the instance.
    is discarded.
 4. The bot replies with a summary: detected technologies, number of components added or refreshed,
    and any unsupported content.
-5. **Initial scan:** the new entries are checked once against the local vulnerability data,
-   including backfilled stories, and a single report is sent. The stories in that report are
-   recorded in the delivery ledger, so they are not sent again later as new.
+5. **Initial scan:** the entries of the file are checked once against the local vulnerability
+   data, including backfilled stories, and a single report is sent. The report lists the stories
+   whose relevance comes from those entries (exact version or component), that pass the
+   subscriber's rules and mutes, and that are not already in the subscriber's delivery ledger; it
+   says so when there are none. The stories in that report are recorded in the delivery ledger, so
+   they are not sent again later as new. The entries wait as pending scans until the report is
+   sent, so a restart does not lose it.
 
 Limits, enforced by the core: files larger than 20 MB are refused before parsing; a parser runs
 off the async executor and is abandoned after 10 seconds; a file that yields more than 100,000

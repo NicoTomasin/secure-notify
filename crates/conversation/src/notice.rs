@@ -8,6 +8,7 @@ use fluent_bundle::FluentArgs;
 use secure_notify_core::app::Store;
 use secure_notify_core::delivery::Notice;
 use secure_notify_core::matching::{NoticeKind, Relevance};
+use secure_notify_core::scan::ScanReport;
 use secure_notify_core::severity;
 
 use crate::handler::Conversation;
@@ -177,5 +178,66 @@ impl<S: Store> Conversation<S> {
             command: String::new(),
         });
         actions
+    }
+}
+
+impl<S: Store> Conversation<S> {
+    /// Renders the report of an initial scan (docs/architecture/inventory.md#upload-flow).
+    pub fn render_scan_report(&self, report: &ScanReport, language: &str) -> Message {
+        let i18n = self.i18n();
+        let text = |key: &str, args: Option<&FluentArgs<'_>>| i18n.text(language, key, args);
+        let mut header = FluentArgs::new();
+        header.set("entries", report.entries);
+        header.set("count", report.stories.len());
+        if report.stories.is_empty() {
+            return Message::text([text("scan-none", Some(&header))]);
+        }
+        let mut blocks = vec![Block::Heading(text("scan-header", Some(&header)))];
+        for (story, reason) in &report.stories {
+            let entries: Vec<String> = reason
+                .entries
+                .iter()
+                .map(|entry| {
+                    let mut args = FluentArgs::new();
+                    args.set("component", entry.component.clone());
+                    let key = match (&entry.version, entry.fixed.is_empty()) {
+                        (Some(version), false) => {
+                            args.set("version", version.clone());
+                            args.set("fixed", entry.fixed.join(", "));
+                            "scan-entry-fixed"
+                        }
+                        (Some(version), true) => {
+                            args.set("version", version.clone());
+                            "scan-entry"
+                        }
+                        (None, _) => "scan-entry-unknown",
+                    };
+                    text(key, Some(&args))
+                })
+                .collect();
+            let mut args = FluentArgs::new();
+            args.set(
+                "severity",
+                text(&format!("severity-{}", story.severity.as_str()), None),
+            );
+            args.set("title", story.title.clone());
+            args.set("entries", entries.join("; "));
+            let key = if story.exploited {
+                "scan-story-exploited"
+            } else {
+                "scan-story"
+            };
+            blocks.push(Block::Item(text(key, Some(&args))));
+            if let Some(url) = &story.url {
+                blocks.push(Block::Link {
+                    label: text("notice-link", None),
+                    url: url.clone(),
+                });
+            }
+        }
+        Message {
+            blocks,
+            ..Message::default()
+        }
     }
 }

@@ -116,6 +116,14 @@ pub trait Outbox: Send + Sync {
         language: &'a str,
         notice: &'a Notice,
     ) -> BoxFuture<'a, Result<(), SendError>>;
+
+    /// Delivers the report of an initial scan to `endpoint` in `language`.
+    fn deliver_report<'a>(
+        &'a self,
+        endpoint: &'a EndpointRef,
+        language: &'a str,
+        report: &'a crate::scan::ScanReport,
+    ) -> BoxFuture<'a, Result<(), SendError>>;
 }
 
 /// Persistence for delivery.

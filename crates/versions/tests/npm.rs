@@ -5,7 +5,7 @@
 
 use proptest::prelude::*;
 use secure_notify_model::{Affected, Component, Range, RangeEvent, RangeType};
-use secure_notify_versions::{Evaluation, SemVer, evaluate};
+use secure_notify_versions::{Evaluation, SemVer, evaluate, fixes_for};
 
 fn affected(package: &str, ranges: &[&[(&str, &str)]]) -> Affected {
     Affected {
@@ -171,4 +171,34 @@ proptest! {
         prop_assert_eq!(evaluate(&entry, &text(a)), Evaluation::Affected);
         prop_assert_eq!(evaluate(&entry, &text(b)), Evaluation::NotAffected);
     }
+}
+
+/// GHSA-fjxv-7rqg-78g4 fixes three release lines of form-data.
+#[test]
+fn only_later_fixes_matter_for_an_installed_version() {
+    let affected = Affected {
+        component: Component {
+            purl: Some("pkg:npm/form-data".to_string()),
+            cpe: None,
+        },
+        ranges: Vec::new(),
+        fixed: vec![
+            "2.5.4".to_string(),
+            "3.0.4".to_string(),
+            "4.0.4".to_string(),
+        ],
+    };
+    assert_eq!(fixes_for(&affected, "4.0.0"), ["4.0.4"]);
+    assert_eq!(fixes_for(&affected, "3.0.1"), ["3.0.4", "4.0.4"]);
+    assert!(fixes_for(&affected, "4.0.4").is_empty());
+    assert_eq!(fixes_for(&affected, "not-a-version"), affected.fixed);
+    // Without an ordering for the purl type, every fixed version is kept.
+    let cargo = Affected {
+        component: Component {
+            purl: Some("pkg:cargo/form-data".to_string()),
+            cpe: None,
+        },
+        ..affected.clone()
+    };
+    assert_eq!(fixes_for(&cargo, "4.0.0"), affected.fixed);
 }

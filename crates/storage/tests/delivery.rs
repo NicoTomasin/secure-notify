@@ -110,3 +110,30 @@ async fn expired_mutes_are_not_listed() {
     assert_eq!(left.len(), 1);
     assert_eq!(left[0].value, "tech:node");
 }
+
+#[tokio::test]
+async fn completing_a_scan_records_each_story_once_and_clears_the_pending_entries() {
+    use secure_notify_core::inventory::ParsedComponent;
+    use secure_notify_core::scan::ScanStore;
+    let (db, dir) = setup();
+    let now = "2026-11-27T12:01:00Z".parse().unwrap();
+    let entry = ParsedComponent {
+        purl: "pkg:npm/lodash".to_string(),
+        version: Some("4.17.20".to_string()),
+    };
+    db.add_pending_scans(SubscriberId(1), vec![entry.clone()], now)
+        .await
+        .unwrap();
+    // The story was delivered as a notification between the scan and its completion.
+    assert!(db.complete(&item(), SNAPSHOT, 10, now).await.unwrap());
+    db.complete_scan(
+        SubscriberId(1),
+        vec![entry],
+        vec![(StoryId(1), SNAPSHOT)],
+        now,
+    )
+    .await
+    .unwrap();
+    assert_eq!(count(&dir, "SELECT count(*) FROM deliveries"), 1);
+    assert_eq!(count(&dir, "SELECT count(*) FROM pending_scans"), 0);
+}

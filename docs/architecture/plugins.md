@@ -143,6 +143,7 @@ license = "AGPL-3.0-or-later"
 interval = "1h"                              # sources and scheduled enrichers only
 default_enabled = true
 mirror = false                               # true for sources that mirror a whole database (exempt from retention)
+ecosystems = []                              # mirrors only: purl types covered, e.g. ["npm"]
 
 [capabilities]
 hosts = ["www.cisa.gov"]                     # the only hosts the plugin may contact
@@ -150,6 +151,9 @@ secrets = []                                 # named secrets the operator must p
 state = true
 ```
 
+- A mirror source MUST list the purl types it covers in `ecosystems`, and only mirrors list them;
+  initial scans of entries of those types wait for its first synchronization (see
+  [inventory.md](inventory.md#initial-scan-before-the-first-synchronization)).
 - The core enforces capabilities; a plugin cannot reach a host or secret it did not declare.
 - A plugin that requires a secret stays disabled until the operator provides it.
 - An update that expands a plugin's capabilities is not activated until an admin approves it.

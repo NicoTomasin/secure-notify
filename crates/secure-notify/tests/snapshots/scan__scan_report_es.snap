@@ -1,0 +1,9 @@
+---
+source: crates/secure-notify/tests/scan.rs
+expression: text
+---
+Escaneo inicial de 8 entradas: 2 problemas conocidos que no se te habían informado.
+• [CRÍTICA] form-data uses unsafe random function in form-data for choosing boundary: pkg:npm/form-data 4.0.0, corregido en 4.0.4
+Detalles: https://osv.dev/vulnerability/GHSA-fjxv-7rqg-78g4
+• [MEDIA] Follow Redirects improperly handles URLs in the url.parse() function: pkg:npm/follow-redirects 1.14.9, corregido en 1.15.4
+Detalles: https://osv.dev/vulnerability/GHSA-jchw-25xp-jwwc

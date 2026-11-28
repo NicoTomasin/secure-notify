@@ -42,6 +42,7 @@ impl FeedSource {
             name: definition.name.clone(),
             interval,
             mirror: false,
+            ecosystems: Vec::new(),
             default_enabled: definition.default_enabled,
             structured: false,
             hosts: vec![host],

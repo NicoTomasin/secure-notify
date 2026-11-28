@@ -200,3 +200,23 @@ details-sources = Fuentes: { $sources }
 details-affected = Afectado: { $component } (corregido en { $fixed })
 details-affected-unfixed = Afectado: { $component } (todavía sin corrección)
 details-related = Relacionada: { $title }
+
+## Initial scan
+
+upload-scan-deferred = Los datos de vulnerabilidades todavía se están sincronizando por primera vez. El reporte del escaneo inicial llegará cuando termine.
+scan-none = Escaneo inicial de { $entries ->
+    [one] una entrada
+   *[other] { $entries } entradas
+}: ningún problema conocido que no se te haya informado antes.
+scan-header = Escaneo inicial de { $entries ->
+    [one] una entrada
+   *[other] { $entries } entradas
+}: { $count ->
+    [one] un problema conocido que no se te había informado.
+   *[other] { $count } problemas conocidos que no se te habían informado.
+}
+scan-story = [{ $severity }] { $title }: { $entries }
+scan-story-exploited = [{ $severity }, explotada] { $title }: { $entries }
+scan-entry-fixed = { $component } { $version }, corregido en { $fixed }
+scan-entry = { $component } { $version }, todavía sin corrección
+scan-entry-unknown = { $component } (versión desconocida)

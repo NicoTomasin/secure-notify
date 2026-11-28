@@ -15,6 +15,7 @@ use secure_notify_conversation::{
 use secure_notify_core::app::Core;
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::ports::{Clock, Random};
+use secure_notify_core::scan::Mirror;
 use secure_notify_core::subscribers::EndpointRef;
 use secure_notify_core::taxonomy::Taxonomy;
 use secure_notify_parser_bun::BunParser;
@@ -85,6 +86,11 @@ pub struct Instance {
 
 impl Instance {
     pub fn new() -> Self {
+        Self::with_mirrors(Vec::new())
+    }
+
+    /// An instance whose enabled mirror sources are `mirrors`.
+    pub fn with_mirrors(mirrors: Vec<Mirror>) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let options = OpenOptions {
             path: dir.path().join("db.sqlite3"),
@@ -102,6 +108,7 @@ impl Instance {
             clock.clone(),
             Arc::new(CountingRandom(Mutex::new(1))),
             parsers(),
+            mirrors.into(),
         );
         let about = About {
             version: "0.0.0-test".to_string(),
@@ -131,13 +138,14 @@ impl Instance {
 
     /// An instance where `alice` is the admin.
     pub async fn with_admin() -> Self {
-        let instance = Self::new();
-        let code = instance.pairing_code().await;
-        instance
-            .send("alice", &format!("/start {code}"))
-            .await
-            .unwrap();
-        instance
+        Self::new().paired().await
+    }
+
+    /// This instance after `alice` paired as its admin.
+    pub async fn paired(self) -> Self {
+        let code = self.pairing_code().await;
+        self.send("alice", &format!("/start {code}")).await.unwrap();
+        self
     }
 
     pub async fn send(&self, user: &str, text: &str) -> Option<String> {
