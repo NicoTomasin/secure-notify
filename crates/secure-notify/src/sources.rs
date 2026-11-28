@@ -8,9 +8,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use secure_notify_core::ports::{HttpError, HttpRequest, HttpResponse};
-use secure_notify_core::sources::{BoxFuture, Source, SourceHttp, SourceState, normalize_items};
+use secure_notify_core::sources::{
+    BoxFuture, Download, Source, SourceHttp, SourceState, normalize_items,
+};
 use secure_notify_declarative::FeedSource;
 use secure_notify_plugin_host::{HttpSettings, SharedHttpClient};
+use secure_notify_source_osv::OsvSource;
 
 use crate::content;
 
@@ -20,15 +23,15 @@ pub(crate) fn registry() -> Result<Vec<Arc<dyn Source>>, String> {
     for definition in content::embedded_feeds()? {
         sources.push(Arc::new(FeedSource::new(definition)?));
     }
+    sources.push(Arc::new(OsvSource::new()));
     Ok(sources)
 }
 
-/// The shared HTTP client with the default settings.
-pub(crate) fn http_client() -> Result<Arc<SharedHttpClient>, String> {
-    SharedHttpClient::new(HttpSettings::new(
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_REPOSITORY"),
-    ))
+/// The shared HTTP client with the default settings; bulk downloads go to `temp_dir` when given.
+pub(crate) fn http_client(temp_dir: Option<PathBuf>) -> Result<Arc<SharedHttpClient>, String> {
+    let mut settings = HttpSettings::new(env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_REPOSITORY"));
+    settings.temp_dir = temp_dir;
+    SharedHttpClient::new(settings)
 }
 
 /// Where a source's recorded fixtures live.
@@ -70,6 +73,28 @@ impl SourceHttp for FixtureHttp {
             })
         })
     }
+
+    fn download(
+        &self,
+        request: HttpRequest,
+        _max_bytes: u64,
+    ) -> BoxFuture<'_, Result<Download, HttpError>> {
+        Box::pin(async move {
+            let file = self
+                .index
+                .get(&request.url)
+                .ok_or_else(|| HttpError::Refused(format!("no fixture for {}", request.url)))?;
+            let opened = std::fs::File::open(self.dir.join(file))
+                .map_err(|e| HttpError::Transport(format!("{file}: {e}")))?;
+            let len = opened.metadata().map_or(0, |m| m.len());
+            Ok(Download {
+                status: 200,
+                headers: Vec::new(),
+                file: opened,
+                len,
+            })
+        })
+    }
 }
 
 /// Records every successful response of the live client.
@@ -92,6 +117,15 @@ impl SourceHttp for RecordingHttp<'_> {
             Ok(response)
         })
     }
+
+    /// Bulk downloads are passed through without recording; their fixtures are trimmed by hand.
+    fn download(
+        &self,
+        request: HttpRequest,
+        max_bytes: u64,
+    ) -> BoxFuture<'_, Result<Download, HttpError>> {
+        self.inner.download(request, max_bytes)
+    }
 }
 
 fn find(id: &str) -> Result<Arc<dyn Source>, String> {
@@ -112,8 +146,8 @@ fn print(line: &str) {
 pub(crate) async fn test(id: &str, live: bool) -> Result<(), String> {
     let source = find(id)?;
     let mut state = SourceState::new();
-    let items = if live {
-        let http = http_client()?.scoped(source.info().hosts.clone());
+    let output = if live {
+        let http = http_client(None)?.scoped(source.info().hosts.clone());
         source.fetch(&http, &mut state).await
     } else {
         let dir = fixture_dir(id);
@@ -128,16 +162,24 @@ pub(crate) async fn test(id: &str, live: bool) -> Result<(), String> {
         source.fetch(&FixtureHttp { dir, index }, &mut state).await
     }
     .map_err(|e| format!("fetch failed: {e}"))?;
-    let (events, dropped) = normalize_items(source.as_ref(), &items);
-    for event in &events {
-        print(&serde_json::to_string(event).map_err(|e| e.to_string())?);
+    let (mut fetched, mut valid, mut dropped) = (0, 0, 0);
+    for batch in output.batches {
+        let items = batch.map_err(|e| format!("fetch failed: {e}"))?;
+        let (events, rejected) = normalize_items(source.as_ref(), &items);
+        for event in &events {
+            print(&serde_json::to_string(event).map_err(|e| e.to_string())?);
+        }
+        fetched += items.len();
+        valid += events.len();
+        dropped += rejected;
     }
     tracing::info!(
         source = id,
         live,
-        fetched = items.len(),
-        valid = events.len(),
+        fetched,
+        valid,
         dropped,
+        withdrawn = output.withdrawn.len(),
         "plugin test finished"
     );
     if dropped > 0 {
@@ -151,7 +193,7 @@ pub(crate) async fn test(id: &str, live: bool) -> Result<(), String> {
 /// `plugin record <id>`: fetches once from the real source and writes the responses as fixtures.
 pub(crate) async fn record(id: &str) -> Result<(), String> {
     let source = find(id)?;
-    let live = http_client()?.scoped(source.info().hosts.clone());
+    let live = http_client(None)?.scoped(source.info().hosts.clone());
     let recording = RecordingHttp {
         inner: &live,
         recorded: Mutex::new(Vec::new()),

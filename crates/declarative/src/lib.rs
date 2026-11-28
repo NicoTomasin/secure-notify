@@ -11,7 +11,7 @@ use jiff::Timestamp;
 use secure_notify_core::identifiers;
 use secure_notify_core::ports::HttpRequest;
 use secure_notify_core::sources::{
-    BoxFuture, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
+    BoxFuture, FetchOutput, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
 };
 use secure_notify_core::time::parse_duration;
 use secure_notify_model::{
@@ -98,7 +98,7 @@ impl Source for FeedSource {
         &'a self,
         http: &'a dyn SourceHttp,
         state: &'a mut SourceState,
-    ) -> BoxFuture<'a, Result<Vec<RawItem>, SourceError>> {
+    ) -> BoxFuture<'a, Result<FetchOutput, SourceError>> {
         Box::pin(async move {
             let mut headers = Vec::new();
             if let Some(etag) = state.get(ETAG) {
@@ -114,7 +114,7 @@ impl Source for FeedSource {
                 })
                 .await?;
             if response.status == 304 {
-                return Ok(Vec::new());
+                return Ok(FetchOutput::items(Vec::new()));
             }
             if response.status != 200 {
                 return Err(SourceError::Response(format!("HTTP {}", response.status)));
@@ -148,7 +148,7 @@ impl Source for FeedSource {
                     }
                 })
                 .collect();
-            Ok(items)
+            Ok(FetchOutput::items(items))
         })
     }
 

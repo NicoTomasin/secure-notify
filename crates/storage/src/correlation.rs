@@ -376,6 +376,20 @@ impl CorrelationTx for SqlTx<'_, '_> {
         Ok(())
     }
 
+    fn delete_event(&mut self, id: i64) -> Result<(), StoreError> {
+        self.tx
+            .execute("DELETE FROM events WHERE id = ?1", [id])
+            .map_err(store_error)?;
+        Ok(())
+    }
+
+    fn delete_story(&mut self, id: StoryId) -> Result<(), StoreError> {
+        self.tx
+            .execute("DELETE FROM stories WHERE id = ?1", [id.0])
+            .map_err(store_error)?;
+        Ok(())
+    }
+
     fn merge_stories(&mut self, from: StoryId, into: StoryId) -> Result<(), StoreError> {
         let (from, into) = (from.0, into.0);
         let statements = [

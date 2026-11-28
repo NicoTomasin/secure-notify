@@ -8,7 +8,13 @@
 use std::sync::Mutex;
 
 use secure_notify_core::ports::{HttpError, HttpRequest, HttpResponse};
-use secure_notify_core::sources::{BoxFuture, Source, SourceHttp, SourceState, normalize_items};
+use secure_notify_core::sources::{
+    BoxFuture, Download, FetchOutput, RawItem, Source, SourceHttp, SourceState, normalize_items,
+};
+
+fn items(output: FetchOutput) -> Vec<RawItem> {
+    output.batches.flat_map(Result::unwrap).collect()
+}
 use secure_notify_declarative::FeedSource;
 use secure_notify_model::{EventKind, SeverityLevel, load_declarative_source};
 
@@ -25,6 +31,10 @@ struct Recorded {
 }
 
 impl SourceHttp for Recorded {
+    fn download(&self, _: HttpRequest, _: u64) -> BoxFuture<'_, Result<Download, HttpError>> {
+        Box::pin(async { Err(HttpError::Refused("not used".to_string())) })
+    }
+
     fn get(&self, request: HttpRequest) -> BoxFuture<'_, Result<HttpResponse, HttpError>> {
         Box::pin(async move {
             let conditional = request
@@ -58,7 +68,7 @@ async fn recorded_feed_becomes_valid_events_with_the_source_defaults() {
         requests: Mutex::new(Vec::new()),
     };
     let mut state = SourceState::new();
-    let items = source.fetch(&http, &mut state).await.unwrap();
+    let items = items(source.fetch(&http, &mut state).await.unwrap());
     let (events, dropped) = normalize_items(&source, &items);
     assert_eq!((events.len(), dropped), (5, 0));
     // Values read by hand from the first item of the fixture.
@@ -98,8 +108,14 @@ async fn unchanged_feeds_are_not_downloaded_again() {
         requests: Mutex::new(Vec::new()),
     };
     let mut state = SourceState::new();
-    assert_eq!(source.fetch(&http, &mut state).await.unwrap().len(), 5);
+    assert_eq!(
+        items(source.fetch(&http, &mut state).await.unwrap()).len(),
+        5
+    );
     assert_eq!(state.get("http.etag").map(String::as_str), Some("\"v1\""));
-    assert_eq!(source.fetch(&http, &mut state).await.unwrap().len(), 0);
+    assert_eq!(
+        items(source.fetch(&http, &mut state).await.unwrap()).len(),
+        0
+    );
     assert_eq!(http.requests.lock().unwrap().len(), 2);
 }

@@ -169,6 +169,10 @@ pub trait CorrelationTx {
     ) -> Result<(), StoreError>;
     /// Links two stories of different families.
     fn add_relation(&mut self, a: StoryId, b: StoryId) -> Result<(), StoreError>;
+    /// Deletes a stored event.
+    fn delete_event(&mut self, id: i64) -> Result<(), StoreError>;
+    /// Deletes a story and everything attached to it.
+    fn delete_story(&mut self, id: StoryId) -> Result<(), StoreError>;
     /// Merges `from` into `into`: events, identifiers, relations, ledger, queue, and story mutes
     /// move; `from` is recorded in `story_merges` and deleted.
     fn merge_stories(&mut self, from: StoryId, into: StoryId) -> Result<(), StoreError>;
@@ -477,6 +481,43 @@ impl<S: CorrelationStore> Correlator<S> {
     }
 }
 
+impl<S: CorrelationStore> Correlator<S> {
+    /// Removes the events of withdrawn items; stories left without events are deleted, others
+    /// are rebuilt without notifying anyone.
+    pub async fn withdraw_items(
+        &self,
+        source: &str,
+        items: Vec<String>,
+    ) -> Result<usize, StoreError> {
+        let context = Context {
+            taxonomy: Arc::clone(&self.taxonomy),
+            now: self.clock.now(),
+            grace: self.grace,
+        };
+        let source = source.to_string();
+        let counts = self
+            .store
+            .correlate(Box::new(move |tx| {
+                let mut counts = IngestCounts::default();
+                for item in items {
+                    let Some(stored) = tx.find_event(&source, &item)? else {
+                        continue;
+                    };
+                    tx.delete_event(stored.id)?;
+                    counts.changed += 1;
+                    if tx.story_events(stored.story)?.is_empty() {
+                        tx.delete_story(stored.story)?;
+                    } else {
+                        context.recompute(tx, stored.story, true, false)?;
+                    }
+                }
+                Ok(counts)
+            }))
+            .await?;
+        Ok(counts.changed)
+    }
+}
+
 impl<S: CorrelationStore> EventSink for Correlator<S> {
     async fn ingest(
         &self,
@@ -488,6 +529,10 @@ impl<S: CorrelationStore> EventSink for Correlator<S> {
             .ingest_events(source.structured, source.mirror, events, backfill)
             .await?;
         Ok(counts.new + counts.changed)
+    }
+
+    async fn withdraw(&self, source: &SourceInfo, items: Vec<String>) -> Result<usize, StoreError> {
+        self.withdraw_items(&source.id, items).await
     }
 }
 

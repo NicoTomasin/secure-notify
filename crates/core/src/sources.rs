@@ -66,10 +66,64 @@ pub struct SourceInfo {
     pub hosts: Vec<String>,
 }
 
+/// A response body written to an anonymous temporary file, deleted when the file is closed.
+#[derive(Debug)]
+pub struct Download {
+    /// HTTP status code.
+    pub status: u16,
+    /// Response headers, names in lowercase.
+    pub headers: Vec<(String, String)>,
+    /// The body, positioned at its start.
+    pub file: std::fs::File,
+    /// Body length in bytes.
+    pub len: u64,
+}
+
+impl Download {
+    /// The first value of header `name` (lowercase).
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v.as_str())
+    }
+}
+
 /// HTTP as seen by a source: the shared client, restricted to the source's declared hosts.
 pub trait SourceHttp: Send + Sync {
     /// Performs a `GET` request.
     fn get(&self, request: HttpRequest) -> BoxFuture<'_, Result<HttpResponse, HttpError>>;
+
+    /// Performs a `GET` request and streams the body to a temporary file, for bulk data larger
+    /// than responses held in memory. `max_bytes` replaces the client's response size limit.
+    fn download(
+        &self,
+        request: HttpRequest,
+        max_bytes: u64,
+    ) -> BoxFuture<'_, Result<Download, HttpError>>;
+}
+
+/// Raw items in batches, so a bulk synchronization stays within the memory budget
+/// (docs/architecture/performance.md#budgets).
+pub type Batches = Box<dyn Iterator<Item = Result<Vec<RawItem>, SourceError>> + Send>;
+
+/// What a fetch produced.
+pub struct FetchOutput {
+    /// New or changed items, in batches. Reading a batch may block (it can read a file), so the
+    /// runner reads batches off the async executor.
+    pub batches: Batches,
+    /// IDs (`source_item_id`) of items the source withdrew; their events are removed.
+    pub withdrawn: Vec<String>,
+}
+
+impl FetchOutput {
+    /// A fetch that produced one batch of items and withdrew nothing.
+    pub fn items(items: Vec<RawItem>) -> Self {
+        Self {
+            batches: Box::new(std::iter::once(Ok(items))),
+            withdrawn: Vec::new(),
+        }
+    }
 }
 
 /// Why a fetch failed.
@@ -88,12 +142,13 @@ pub trait Source: Send + Sync {
     /// Source information.
     fn info(&self) -> &SourceInfo;
 
-    /// Fetches raw items, incrementally, keeping cursors in `state`.
+    /// Fetches raw items, incrementally, keeping cursors in `state`. The runner saves `state`
+    /// only after every batch was ingested.
     fn fetch<'a>(
         &'a self,
         http: &'a dyn SourceHttp,
         state: &'a mut SourceState,
-    ) -> BoxFuture<'a, Result<Vec<RawItem>, SourceError>>;
+    ) -> BoxFuture<'a, Result<FetchOutput, SourceError>>;
 
     /// Turns one raw item into one event; a pure function of the item.
     fn normalize(&self, item: &RawItem) -> Result<NormalizedEvent, String>;
@@ -123,6 +178,14 @@ pub trait EventSink: Send + Sync {
         source: &SourceInfo,
         events: Vec<NormalizedEvent>,
         backfill: bool,
+    ) -> impl Future<Output = Result<usize, StoreError>> + Send;
+
+    /// Removes the events of items a source withdrew, and stories left without events. Returns
+    /// how many events were removed.
+    fn withdraw(
+        &self,
+        source: &SourceInfo,
+        items: Vec<String>,
     ) -> impl Future<Output = Result<usize, StoreError>> + Send;
 }
 
@@ -215,12 +278,12 @@ where
         error: None,
     };
     state.insert(LAST_ATTEMPT.to_string(), now.to_string());
+    let outcome = match outcome {
+        Ok(output) => ingest_batches(source, sink, output, backfill, &mut report).await?,
+        Err(error) => Err(error),
+    };
     match outcome {
-        Ok(items) => {
-            let (events, dropped) = normalize_items(source, &items);
-            report.fetched = items.len();
-            report.dropped = dropped;
-            report.ingested = sink.ingest(info, events, backfill).await?;
+        Ok(()) => {
             for (key, value) in cursors {
                 if !key.starts_with("sync.") && !key.starts_with("health.") {
                     state.insert(key, value);
@@ -245,6 +308,46 @@ where
     }
     store.save_source_state(&info.id, &state).await?;
     Ok(report)
+}
+
+/// Reads the batches of a fetch off the async executor, normalizing, validating, and ingesting
+/// each one, then removes withdrawn items. A source error stops the run; a storage error is
+/// returned as such.
+async fn ingest_batches<Sk: EventSink>(
+    source: &dyn Source,
+    sink: &Sk,
+    output: FetchOutput,
+    backfill: bool,
+    report: &mut RunReport,
+) -> Result<Result<(), SourceError>, StoreError> {
+    let info = source.info();
+    let mut batches = Some(output.batches);
+    loop {
+        let Some(mut iterator) = batches.take() else {
+            break;
+        };
+        let (iterator, next) = tokio::task::spawn_blocking(move || {
+            let next = iterator.next();
+            (iterator, next)
+        })
+        .await
+        .map_err(|e| StoreError(format!("batch reader failed: {e}")))?;
+        let items = match next {
+            None => break,
+            Some(Err(error)) => return Ok(Err(error)),
+            Some(Ok(items)) => items,
+        };
+        batches = Some(iterator);
+        let (events, dropped) = normalize_items(source, &items);
+        report.fetched += items.len();
+        report.dropped += dropped;
+        report.ingested += sink.ingest(info, events, backfill).await?;
+    }
+    if !output.withdrawn.is_empty() {
+        let removed = sink.withdraw(info, output.withdrawn).await?;
+        tracing::info!(source = %info.id, removed, "withdrawn items removed");
+    }
+    Ok(Ok(()))
 }
 
 /// Runs a source forever on its schedule, in real time: sources never follow the console's

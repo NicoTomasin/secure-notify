@@ -10,7 +10,8 @@ use secure_notify_core::correlation::Correlator;
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::ports::{Clock, Random};
 use secure_notify_core::sources::{
-    BoxFuture, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState, schedule,
+    BoxFuture, FetchOutput, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
+    schedule,
 };
 use secure_notify_parser_bun::BunParser;
 use secure_notify_parser_npm::NpmParser;
@@ -104,7 +105,10 @@ pub(crate) fn start_pipeline(
         clock.clone(),
         settings.instance.correlation.grace_window,
     ));
-    let http = crate::sources::http_client()?;
+    let temp_dir = settings.data_dir.join("tmp");
+    std::fs::create_dir_all(&temp_dir)
+        .map_err(|e| format!("cannot create {}: {e}", temp_dir.display()))?;
+    let http = crate::sources::http_client(Some(temp_dir))?;
     for source in registry {
         let overrides = settings.instance.sources.get(&source.info().id);
         let enabled = overrides
@@ -180,7 +184,7 @@ impl Source for WithInterval {
         &'a self,
         http: &'a dyn SourceHttp,
         state: &'a mut SourceState,
-    ) -> BoxFuture<'a, Result<Vec<RawItem>, SourceError>> {
+    ) -> BoxFuture<'a, Result<FetchOutput, SourceError>> {
         self.inner.fetch(http, state)
     }
 
