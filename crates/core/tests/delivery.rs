@@ -124,6 +124,15 @@ impl Outbox for FakeOutbox {
     ) -> BoxFuture<'a, Result<(), SendError>> {
         Box::pin(async move { self.result.clone() })
     }
+
+    fn deliver_alert<'a>(
+        &'a self,
+        _: &'a EndpointRef,
+        _: &'a str,
+        _: &'a secure_notify_core::health::SourceAlert,
+    ) -> BoxFuture<'a, Result<(), SendError>> {
+        Box::pin(async move { self.result.clone() })
+    }
 }
 
 fn story(exploited: bool) -> StoryView {

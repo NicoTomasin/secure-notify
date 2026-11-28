@@ -13,14 +13,18 @@ use secure_notify_conversation::{
     About, Attachment, ChatKind, Conversation, I18n, Incoming, render_plain,
 };
 use secure_notify_core::app::Core;
+use secure_notify_core::correlation::Correlator;
+use secure_notify_core::health::SourceEntry;
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::ports::{Clock, Random};
 use secure_notify_core::scan::Mirror;
+use secure_notify_core::sources::{RawItem, Source};
 use secure_notify_core::subscribers::EndpointRef;
 use secure_notify_core::taxonomy::Taxonomy;
 use secure_notify_parser_bun::BunParser;
 use secure_notify_parser_npm::NpmParser;
 use secure_notify_parser_pnpm::PnpmParser;
+use secure_notify_source_osv::OsvSource;
 use secure_notify_storage::{Database, OpenOptions};
 
 pub struct TestClock(pub Mutex<Timestamp>);
@@ -91,6 +95,22 @@ impl Instance {
 
     /// An instance whose enabled mirror sources are `mirrors`.
     pub fn with_mirrors(mirrors: Vec<Mirror>) -> Self {
+        Self::with_sources(
+            mirrors
+                .into_iter()
+                .map(|m| SourceEntry {
+                    name: m.source.clone(),
+                    id: m.source,
+                    enabled: true,
+                    mirror: true,
+                    ecosystems: m.ecosystems,
+                })
+                .collect(),
+        )
+    }
+
+    /// An instance with these sources.
+    pub fn with_sources(sources: Vec<SourceEntry>) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let options = OpenOptions {
             path: dir.path().join("db.sqlite3"),
@@ -108,7 +128,7 @@ impl Instance {
             clock.clone(),
             Arc::new(CountingRandom(Mutex::new(1))),
             parsers(),
-            mirrors.into(),
+            sources.into(),
         );
         let about = About {
             version: "0.0.0-test".to_string(),
@@ -212,5 +232,52 @@ impl Instance {
     pub fn advance(&self, by: SignedDuration) {
         let mut now = self.clock.0.lock().unwrap();
         *now = now.checked_add(by).unwrap();
+    }
+}
+
+/// Real OSV records affecting `npm-shrinkwrap-v2.json` (tests/fixtures/osv/README.md).
+pub const OSV_FIXTURES: [&str; 3] = [
+    "GHSA-fjxv-7rqg-78g4",
+    "GHSA-jchw-25xp-jwwc",
+    "GHSA-74fj-2j2h-c42q",
+];
+
+/// The npm parser's real `npm-shrinkwrap-v2.json` fixture (follow-redirects 1.14.9, form-data
+/// 4.0.0, axios 0.27.2, and their dependencies).
+pub fn shrinkwrap() -> Vec<u8> {
+    let path = format!(
+        "{}/../../plugins/parsers/npm/fixtures/npm-shrinkwrap-v2.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::fs::read(path).unwrap()
+}
+
+impl Instance {
+    /// Ingests [`OSV_FIXTURES`], normalized by the OSV source, as the OSV mirror's backfill.
+    pub async fn backfill_osv_fixtures(&self) {
+        let source = OsvSource::new();
+        let mut events = Vec::new();
+        for id in OSV_FIXTURES {
+            let path = format!(
+                "{}/tests/fixtures/osv/{id}.json",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            let data = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+            let item = RawItem {
+                id: id.to_string(),
+                data,
+            };
+            events.push(source.normalize(&item).unwrap());
+        }
+        let correlator = Correlator::new(
+            self.database.clone(),
+            Arc::new(repository_taxonomy()),
+            self.clock.clone(),
+            SignedDuration::from_mins(5),
+        );
+        correlator
+            .ingest_events(true, true, events, true)
+            .await
+            .unwrap();
     }
 }

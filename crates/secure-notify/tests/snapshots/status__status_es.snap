@@ -1,0 +1,12 @@
+---
+source: crates/secure-notify/tests/status.rs
+expression: spanish
+---
+Estado de la instancia
+Versión 0.0.0-test, con el contenido incluido en el binario.
+Suscriptores: 2 · Historias: 3 · Eventos: 3 · Notificaciones en cola: 0 · Escaneos pendientes: 8
+Fuentes:
+• OSV (npm): último éxito 2026-11-27 11:00 UTC · 232471 ítems
+• CISA Known Exploited Vulnerabilities: 3 ejecuciones fallidas seguidas, la última 2026-11-27 11:30 UTC: unexpected response: HTTP 503 · último éxito 2026-11-27 08:00 UTC · 1808 ítems
+• Node.js security releases: deshabilitada
+• Example feed: primera sincronización pendiente o en curso

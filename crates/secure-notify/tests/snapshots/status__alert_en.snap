@@ -1,0 +1,5 @@
+---
+source: crates/secure-notify/tests/status.rs
+expression: text
+---
+Source CISA Known Exploited Vulnerabilities failed 3 times in a row. Last error: unexpected response: HTTP 503. It keeps retrying with backoff; send /status for details.

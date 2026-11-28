@@ -9,6 +9,7 @@
 pub mod app;
 pub mod correlation;
 pub mod delivery;
+pub mod health;
 pub mod identifiers;
 pub mod inventory;
 pub mod matching;

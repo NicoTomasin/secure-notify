@@ -109,6 +109,12 @@ pub const COMMANDS: &[CommandSpec] = &[
         description: "command-invite",
     },
     CommandSpec {
+        name: "status",
+        permission: Permission::Admin,
+        availability: Availability::Private,
+        description: "command-status",
+    },
+    CommandSpec {
         name: "subscribers",
         permission: Permission::Admin,
         availability: Availability::Private,

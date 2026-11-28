@@ -35,6 +35,10 @@ pub const FAILURES: &str = "health.failures";
 /// Events accepted since the source was first run.
 pub const ITEMS: &str = "health.items";
 
+/// Consecutive failed runs after which admins are told, once per streak
+/// (docs/operations/self-hosting.md#operations).
+pub const FAILURE_STREAK: u32 = 3;
+
 /// Longest delay between attempts while a source keeps failing.
 pub const MAX_BACKOFF: SignedDuration = SignedDuration::from_hours(24);
 
@@ -252,6 +256,8 @@ pub struct RunReport {
     pub ingested: usize,
     /// The failure, if the run failed.
     pub error: Option<String>,
+    /// Consecutive failed runs after this one (0 when it succeeded).
+    pub failures: u32,
 }
 
 /// Runs a source once: fetch, normalize, validate, ingest, and record state and health. A failure
@@ -279,6 +285,7 @@ where
         dropped: 0,
         ingested: 0,
         error: None,
+        failures: 0,
     };
     state.insert(LAST_ATTEMPT.to_string(), now.to_string());
     let outcome = match outcome {
@@ -304,6 +311,7 @@ where
                 .and_then(|f| f.parse().ok())
                 .unwrap_or(0);
             state.insert(FAILURES.to_string(), (failures + 1).to_string());
+            report.failures = failures + 1;
             state.insert(LAST_FAILURE.to_string(), now.to_string());
             state.insert(LAST_ERROR.to_string(), error.to_string());
             report.error = Some(error.to_string());
@@ -353,6 +361,23 @@ async fn ingest_batches<Sk: EventSink>(
     Ok(Ok(()))
 }
 
+/// Told when a source's consecutive failures reach [`FAILURE_STREAK`], once per streak.
+pub trait HealthObserver: Send + Sync {
+    /// `source` failed `failures` times in a row; `error` is the last failure.
+    fn source_failing<'a>(
+        &'a self,
+        source: &'a SourceInfo,
+        failures: u32,
+        error: &'a str,
+    ) -> BoxFuture<'a, ()>;
+}
+
+/// Whether a run ends a streak of exactly [`FAILURE_STREAK`] failures, the one moment admins are
+/// told about it.
+pub fn streak_reached(report: &RunReport) -> bool {
+    report.failures == FAILURE_STREAK
+}
+
 /// Runs a source forever on its schedule, in real time: sources never follow the console's
 /// development clock (docs/engineering/local-development.md#console-platform). A failure is
 /// recorded and backed off; it never affects other sources.
@@ -361,6 +386,7 @@ pub async fn schedule<St, Sk>(
     http: std::sync::Arc<dyn SourceHttp>,
     store: St,
     sink: std::sync::Arc<Sk>,
+    observer: std::sync::Arc<dyn HealthObserver>,
 ) where
     St: SourceStateStore,
     Sk: EventSink,
@@ -395,11 +421,18 @@ pub async fn schedule<St, Sk>(
                 ingested = report.ingested,
                 "source run finished"
             ),
-            Ok(report) => tracing::warn!(
-                source = %info.id,
-                error = report.error.as_deref().unwrap_or_default(),
-                "source run failed"
-            ),
+            Ok(report) => {
+                let error = report.error.as_deref().unwrap_or_default();
+                tracing::warn!(
+                    source = %info.id,
+                    failures = report.failures,
+                    error,
+                    "source run failed"
+                );
+                if streak_reached(&report) {
+                    observer.source_failing(&info, report.failures, error).await;
+                }
+            }
             Err(error) => {
                 tracing::error!(source = %info.id, error = %error, "source run could not be recorded");
                 tokio::time::sleep(std::time::Duration::from_secs(60)).await;
