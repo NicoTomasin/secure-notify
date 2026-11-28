@@ -62,7 +62,10 @@ Subscribers MUST be able to choose how they receive notifications:
 - The dispatcher runs every minute, takes due items, groups them per subscriber, runs the double
   check, renders, sends to every routed endpoint, and writes the delivery ledger.
 - The ledger is per subscriber; each send to an endpoint is a delivery attempt. Failed attempts are
-  retried with backoff per endpoint without re-sending to endpoints that already succeeded.
+  retried with backoff per endpoint without re-sending to endpoints that already succeeded. The
+  backoff starts at one minute and doubles with each failed attempt, up to one hour. When the
+  platform reports that the endpoint is gone, the endpoint is deactivated (see
+  [subscribers.md](subscribers.md#subscribers-and-endpoints)) instead of retried.
 - Empty digests are never sent.
 
 ## Message content
@@ -111,5 +114,7 @@ On platforms with buttons, messages carry actions:
   [inventory.md](inventory.md)).
 - **Details**: shows all sources, identifiers, affected ranges, and related stories.
 
-On platforms without buttons, the message lists the equivalent commands, and, when the web panel is
-enabled, a link to the story in the panel.
+Mute actions map to `/mutes add` and "I no longer use this version" maps to `/inventory remove`.
+On platforms without buttons, the message lists those equivalent commands, and, when the web panel
+is enabled, a link to the story in the panel. **Details** has no command equivalent and is offered
+only as a button.

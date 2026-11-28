@@ -4,7 +4,9 @@
 
 use std::sync::Arc;
 
+use crate::delivery::DetailsStore;
 use crate::inventory::{Inventory, InventoryStore, Parser};
+use crate::mutes::{MuteStore, Mutes};
 use crate::ports::{Clock, InstanceStore, Random};
 use crate::rules::{RuleStore, Rules};
 use crate::subscribers::{SubscriberStore, Subscribers};
@@ -18,6 +20,8 @@ pub trait Store:
     + WatchStore
     + InventoryStore
     + RuleStore
+    + MuteStore
+    + DetailsStore
     + Clone
     + Send
     + Sync
@@ -31,6 +35,8 @@ impl<T> Store for T where
         + WatchStore
         + InventoryStore
         + RuleStore
+        + MuteStore
+        + DetailsStore
         + Clone
         + Send
         + Sync
@@ -48,6 +54,8 @@ pub struct Core<S> {
     pub inventory: Inventory<S>,
     /// Rules and the minimum severity.
     pub rules: Rules<S>,
+    /// Mutes.
+    pub mutes: Mutes<S>,
 }
 
 impl<S: Store> Core<S> {
@@ -63,6 +71,7 @@ impl<S: Store> Core<S> {
             subscribers: Subscribers::new(store.clone(), clock.clone(), random),
             inventory: Inventory::new(store.clone(), parsers, taxonomy.clone(), clock.clone()),
             rules: Rules::new(store.clone()),
+            mutes: Mutes::new(store.clone(), clock.clone()),
             watches: Watches::new(store, taxonomy, clock),
         }
     }

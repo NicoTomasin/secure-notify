@@ -14,6 +14,7 @@ use secure_notify_conversation::{
 use secure_notify_core::correlation::IngestCounts;
 
 use crate::app::Pipeline;
+use crate::outbox::ConsoleSink;
 use secure_notify_core::ports::{Clock, InstanceStore};
 use secure_notify_core::subscribers::{EndpointRef, PAIRING_CODE_KEY};
 use secure_notify_core::time::parse_duration;
@@ -81,6 +82,7 @@ pub(crate) async fn run(
     conversation: &Conversation<Database>,
     database: &Database,
     pipeline: &Pipeline,
+    sink: &ConsoleSink,
     clock: &Arc<DevClock>,
     script: Option<&Path>,
 ) -> Result<bool, String> {
@@ -99,6 +101,7 @@ pub(crate) async fn run(
         for line in text.lines() {
             step(conversation, database, pipeline, clock, &mut session, line).await;
             pipeline.settle().await;
+            flush(sink, &mut session);
         }
     } else {
         let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -109,6 +112,7 @@ pub(crate) async fn run(
         {
             step(conversation, database, pipeline, clock, &mut session, &line).await;
             pipeline.settle().await;
+            flush(sink, &mut session);
         }
     }
     Ok(!session.failed && !crate::logging::error_logged())
@@ -130,6 +134,9 @@ async fn step(
         Ok(line) => line,
         Err(problem) => return fail(session, raw, &problem),
     };
+    if !line.starts_with(":expect") {
+        session.last_output.clear();
+    }
     if let Some(directive) = line.strip_prefix(':') {
         let (name, argument) = directive
             .split_once(char::is_whitespace)
@@ -272,4 +279,19 @@ async fn ingest(pipeline: &Pipeline, path: &str) -> Result<IngestCounts, String>
         .ingest_events(false, false, events, false)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Prints notifications sent to console endpoints since the last step; they become the output
+/// that `:expect` checks.
+fn flush(sink: &ConsoleSink, session: &mut Session) {
+    for (address, text) in sink.drain() {
+        for (i, out) in text.lines().enumerate() {
+            let prefix = if i == 0 { "<" } else { " " };
+            print(&format!("[{address}] {prefix} {out}"));
+        }
+        if !session.last_output.is_empty() {
+            session.last_output.push('\n');
+        }
+        session.last_output.push_str(&text);
+    }
 }

@@ -139,3 +139,64 @@ remove-self = No podés eliminarte a vos mismo.
 error-permission-denied = Solo los admins pueden usar /{ $command }.
 error-unknown-command = Comando desconocido. Mandá /help para ver los comandos.
 error-internal = Algo salió mal. Probá de nuevo más tarde.
+
+## Notifications
+
+severity-critical = CRÍTICA
+severity-high = ALTA
+severity-medium = MEDIA
+severity-low = BAJA
+severity-unknown = SEVERIDAD DESCONOCIDA
+kind-vulnerability = Vulnerabilidad
+kind-exploit = Exploit
+kind-malicious-package = Paquete malicioso
+kind-release = Versión de seguridad
+kind-bug = Bug crítico
+kind-breach = Filtración
+kind-attack = Ataque
+kind-outage = Caída
+kind-news = Noticia
+notice-header = [{ $severity }] { $kind }: { $title }
+notice-update-header = Actualización · [{ $severity }] { $kind }: { $title }
+notice-exploited = Se sabe que está siendo explotada.
+notice-exploit-available = Hay un exploit público.
+change-severity = La severidad subió a { $severity }.
+change-exploited = Ahora se sabe que está siendo explotada.
+change-exploit-available = Ahora hay un exploit público.
+change-fix-available = Ahora hay una corrección.
+reason-version-fixed = En tu inventario: { $component } { $version } (corregido en { $fixed }).
+reason-version = En tu inventario: { $component } { $version }.
+reason-component = En tu inventario: { $component } (versión desconocida).
+reason-watch = Seguís { $name }.
+field-cvss = CVSS
+field-epss = EPSS
+notice-sources = { $count ->
+    [one] Lo reporta una fuente.
+   *[other] Lo reportan { $count } fuentes.
+}
+notice-link = Detalles
+action-mute-story = Silenciar esta historia
+action-mute-component = Silenciar { $component }
+action-no-longer-used = Ya no uso { $component } { $version }
+action-mute-entity = Silenciar { $name }
+
+## /mutes
+
+command-mutes = Ver, agregar y quitar silencios
+mutes-none = No tenés silencios.
+mutes-header = Tus silencios:
+mutes-line = #{ $id } · { $scope } { $value }
+mutes-line-until = #{ $id } · { $scope } { $value } hasta { $until }
+mutes-usage = Usá /mutes add story <id>, entity <id>, component <purl> o version <purl@versión>, con una duración opcional como 7d; /mutes remove <número>.
+mutes-added = Silenciado { $scope } { $value }.
+mutes-added-until = Silenciado { $scope } { $value } hasta { $until }.
+mutes-invalid = Ese silencio no es válido.
+mutes-removed = Se quitó el silencio #{ $id }.
+mutes-not-found = No existe el silencio #{ $id }.
+action-details = Detalles
+details-gone = Esa historia ya no está disponible.
+details-identifiers = Identificadores: { $ids }
+details-sources = Fuentes: { $sources }
+details-affected = Afectado: { $component } (corregido en { $fixed })
+details-affected-unfixed = Afectado: { $component } (todavía sin corrección)
+details-related = Relacionada: { $title }

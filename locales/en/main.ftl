@@ -139,3 +139,64 @@ remove-self = You cannot remove yourself.
 error-permission-denied = Only admins can use /{ $command }.
 error-unknown-command = Unknown command. Send /help to see the commands.
 error-internal = Something went wrong. Please try again later.
+
+## Notifications
+
+severity-critical = CRITICAL
+severity-high = HIGH
+severity-medium = MEDIUM
+severity-low = LOW
+severity-unknown = UNKNOWN SEVERITY
+kind-vulnerability = Vulnerability
+kind-exploit = Exploit
+kind-malicious-package = Malicious package
+kind-release = Security release
+kind-bug = Critical bug
+kind-breach = Breach
+kind-attack = Attack
+kind-outage = Outage
+kind-news = News
+notice-header = [{ $severity }] { $kind }: { $title }
+notice-update-header = Update · [{ $severity }] { $kind }: { $title }
+notice-exploited = Known to be exploited.
+notice-exploit-available = A public exploit is available.
+change-severity = Severity raised to { $severity }.
+change-exploited = It is now known to be exploited.
+change-exploit-available = A public exploit is now available.
+change-fix-available = A fix is now available.
+reason-version-fixed = In your inventory: { $component } { $version } (fixed in { $fixed }).
+reason-version = In your inventory: { $component } { $version }.
+reason-component = In your inventory: { $component } (version unknown).
+reason-watch = You watch { $name }.
+field-cvss = CVSS
+field-epss = EPSS
+notice-sources = { $count ->
+    [one] Reported by one source.
+   *[other] Reported by { $count } sources.
+}
+notice-link = Details
+action-mute-story = Mute this story
+action-mute-component = Mute { $component }
+action-no-longer-used = I no longer use { $component } { $version }
+action-mute-entity = Mute { $name }
+
+## /mutes
+
+command-mutes = List, add, and remove mutes
+mutes-none = You have no mutes.
+mutes-header = Your mutes:
+mutes-line = #{ $id } · { $scope } { $value }
+mutes-line-until = #{ $id } · { $scope } { $value } until { $until }
+mutes-usage = Use /mutes add story <id>, entity <id>, component <purl>, or version <purl@version>, with an optional duration such as 7d; /mutes remove <number>.
+mutes-added = Muted { $scope } { $value }.
+mutes-added-until = Muted { $scope } { $value } until { $until }.
+mutes-invalid = That mute is not valid.
+mutes-removed = Mute #{ $id } removed.
+mutes-not-found = There is no mute #{ $id }.
+action-details = Details
+details-gone = That story is no longer available.
+details-identifiers = Identifiers: { $ids }
+details-sources = Sources: { $sources }
+details-affected = Affected: { $component } (fixed in { $fixed })
+details-affected-unfixed = Affected: { $component } (no fix yet)
+details-related = Related: { $title }
