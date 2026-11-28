@@ -10,3 +10,4 @@
 *.wasm binary
 *.zst binary
 *.gz binary
+*.zip binary

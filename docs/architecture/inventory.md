@@ -31,6 +31,11 @@ uses locally mirrored data, so the inventory never leaves the instance.
   ecosystems present in at least one inventory, then kept current incrementally. While an instance
   supports a single ecosystem for uploads (the MVP, see [../roadmap.md](../roadmap.md#phase-1-mvp)),
   that ecosystem is mirrored from the first start, so its data is ready before the first upload.
+- The MVP mirror is the `osv` source (`plugins/sources/osv/`), the npm ecosystem of OSV. Its first
+  synchronization downloads `npm/all.zip` from the public OSV bucket to a temporary file in the data
+  directory and reads it in batches; later runs read `npm/modified_id.csv` and fetch only records
+  modified since the last synchronization, or the whole archive again when more than 2,000 changed.
+  Records OSV withdraws are removed, with stories left without events.
 
 ## Entries and maintenance
 

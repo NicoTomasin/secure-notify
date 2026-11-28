@@ -420,3 +420,33 @@ async fn retention_keeps_minimal_records_and_mirrors_and_rebuilds_compacted_stor
         "only the mirror story remains"
     );
 }
+
+#[tokio::test]
+async fn withdrawn_items_disappear_with_stories_left_empty() {
+    // deduplication.md#retention: mirrored records are removed when the source withdraws them.
+    let f = Fixture::new();
+    let ids = json!({"identifiers": {"cve": ["CVE-2026-0006"]}});
+    f.ingest(vec![event("osv", "GHSA-aaaa-bbbb-cccc", json!({}))], true)
+        .await;
+    f.ingest(
+        vec![event("osv", "OSV-2", ids.clone()), event("feed", "x", ids)],
+        true,
+    )
+    .await;
+    let removed = f
+        .correlator
+        .withdraw_items(
+            "osv",
+            vec![
+                "GHSA-aaaa-bbbb-cccc".to_string(),
+                "OSV-2".to_string(),
+                "unknown".to_string(),
+            ],
+        )
+        .await
+        .unwrap();
+    assert_eq!(removed, 2);
+    // The first story had only the withdrawn event; the second keeps its other report.
+    assert_eq!(f.count("SELECT count(*) FROM stories"), 1);
+    assert_eq!(f.count("SELECT count(*) FROM events"), 1);
+}

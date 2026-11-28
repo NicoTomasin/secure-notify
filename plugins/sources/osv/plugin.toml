@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Local mirror of the npm ecosystem of OSV (docs/architecture/inventory.md#inventory-stays-local).
+# The data is public (CC-BY 4.0 and source licenses) and served from a public bucket.
+
+id = "osv"
+name = "OSV (npm)"
+kind = "source"
+runtime = "native"
+version = "0.1.0"
+license = "AGPL-3.0-or-later"
+interval = "1h"
+default_enabled = true
+mirror = true
+
+[capabilities]
+hosts = ["osv-vulnerabilities.storage.googleapis.com"]
+state = true

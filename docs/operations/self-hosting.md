@@ -73,8 +73,8 @@ as unset):
 
 > Status: `Proposed`
 
-- The data directory (`DATA_DIR`) holds the database file `secure-notify.db` and the `backups/`
-  directory.
+- The data directory (`DATA_DIR`) holds the database file `secure-notify.db`, the `backups/`
+  directory, and `tmp/` for downloads in progress (deleted when closed).
 - `secure-notify backup <path>` writes a consistent online backup of the database. Copying the file
   while the instance is stopped is also valid.
 - Upgrading means replacing the binary or image; migrations run automatically after an automatic

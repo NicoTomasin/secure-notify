@@ -6,13 +6,15 @@
 //! and a generic User-Agent. It never carries subscriber or operator data.
 
 use std::collections::HashMap;
+use std::io::{Seek, SeekFrom, Write};
 use std::net::{IpAddr, SocketAddr};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use secure_notify_core::ports::{HttpError, HttpRequest, HttpResponse};
-use secure_notify_core::sources::{BoxFuture, SourceHttp};
+use secure_notify_core::sources::{BoxFuture, Download, SourceHttp};
 use tokio::time::Instant;
 use url::Url;
 
@@ -25,6 +27,10 @@ pub struct HttpSettings {
     pub user_agent: String,
     /// Timeout of one request, including reading the body.
     pub timeout: Duration,
+    /// Timeout of one bulk download, including reading the body.
+    pub download_timeout: Duration,
+    /// Directory for downloads; the system temporary directory when `None`.
+    pub temp_dir: Option<PathBuf>,
     /// Largest accepted response body.
     pub max_bytes: usize,
     /// Minimum time between two requests to the same host.
@@ -45,6 +51,8 @@ impl HttpSettings {
         Self {
             user_agent: format!("secure-notify/{version} (+{repository_url})"),
             timeout: Duration::from_secs(60),
+            download_timeout: Duration::from_mins(30),
+            temp_dir: None,
             max_bytes: 50 * 1024 * 1024,
             min_interval_per_host: Duration::from_secs(1),
             retries: 2,
@@ -173,10 +181,17 @@ impl ScopedHttp {
         Ok(host.to_ascii_lowercase())
     }
 
-    async fn send_once(&self, url: &Url, headers: &[(String, String)]) -> Result<Hop, HttpError> {
+    async fn send_once(
+        &self,
+        url: &Url,
+        headers: &[(String, String)],
+        max: u64,
+        timeout: Duration,
+        body: &mut dyn BodySink,
+    ) -> Result<Hop, HttpError> {
         let host = self.check(url)?;
         self.shared.pace(&host).await;
-        let mut request = self.shared.client.get(url.clone());
+        let mut request = self.shared.client.get(url.clone()).timeout(timeout);
         for (name, value) in headers {
             request = request.header(name.as_str(), value.as_str());
         }
@@ -200,66 +215,152 @@ impl ScopedHttp {
                 .map_err(|e| HttpError::Transport(format!("bad redirect: {e}")))?;
             return Ok(Hop::Redirect(next));
         }
-        let max = self.shared.settings.max_bytes;
-        if response
-            .content_length()
-            .is_some_and(|len| len > max as u64)
-        {
-            return Err(HttpError::TooLarge(max));
+        let limit = usize::try_from(max).unwrap_or(usize::MAX);
+        if response.content_length().is_some_and(|len| len > max) {
+            return Err(HttpError::TooLarge(limit));
         }
-        let mut body = Vec::new();
+        let mut written: u64 = 0;
         while let Some(chunk) = response.chunk().await.map_err(transport)? {
-            if body.len() + chunk.len() > max {
-                return Err(HttpError::TooLarge(max));
+            written += chunk.len() as u64;
+            if written > max {
+                return Err(HttpError::TooLarge(limit));
             }
-            body.extend_from_slice(&chunk);
+            body.write(&chunk)?;
         }
-        Ok(Hop::Done(HttpResponse {
-            status,
-            headers: response_headers,
-            body,
-        }))
+        Ok(Hop::Done(status, response_headers))
     }
 
     async fn send_following_redirects(
         &self,
         request: &HttpRequest,
-    ) -> Result<HttpResponse, HttpError> {
+        max: u64,
+        timeout: Duration,
+        body: &mut dyn BodySink,
+    ) -> Result<(u16, Vec<(String, String)>), HttpError> {
         let mut url = Url::parse(&request.url)
             .map_err(|e| HttpError::Refused(format!("invalid URL: {e}")))?;
         for _ in 0..=self.shared.settings.max_redirects {
-            match self.send_once(&url, &request.headers).await? {
-                Hop::Done(response) => return Ok(response),
+            match self
+                .send_once(&url, &request.headers, max, timeout, body)
+                .await?
+            {
+                Hop::Done(status, headers) => return Ok((status, headers)),
                 Hop::Redirect(next) => url = next,
             }
         }
         Err(HttpError::Transport("too many redirects".to_string()))
     }
 
-    /// Performs a `GET` with retries.
-    pub async fn get(&self, request: HttpRequest) -> Result<HttpResponse, HttpError> {
+    /// Retries `attempt` after transport errors, timeouts, `429`, and `5xx`.
+    async fn with_retries<T, F, Fut>(&self, mut attempt: F) -> Result<T, HttpError>
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = Result<(u16, T), HttpError>>,
+    {
         let settings = &self.shared.settings;
         let mut delay = settings.retry_delay;
-        let mut attempt = 0;
+        let mut tries = 0;
         loop {
-            let result = self.send_following_redirects(&request).await;
+            let result = attempt().await;
             let retryable = match &result {
-                Ok(response) => response.status == 429 || response.status >= 500,
+                Ok((status, _)) => *status == 429 || *status >= 500,
                 Err(HttpError::Timeout | HttpError::Transport(_)) => true,
                 Err(HttpError::Refused(_) | HttpError::TooLarge(_)) => false,
             };
-            if !retryable || attempt >= settings.retries {
-                return result;
+            if !retryable || tries >= settings.retries {
+                return result.map(|(_, value)| value);
             }
-            attempt += 1;
+            tries += 1;
             tokio::time::sleep(delay).await;
             delay *= 2;
         }
     }
+
+    /// Performs a `GET` with retries.
+    pub async fn get(&self, request: HttpRequest) -> Result<HttpResponse, HttpError> {
+        let max = self.shared.settings.max_bytes as u64;
+        let timeout = self.shared.settings.timeout;
+        self.with_retries(|| async {
+            let mut body = Vec::new();
+            let (status, headers) = self
+                .send_following_redirects(&request, max, timeout, &mut body)
+                .await?;
+            Ok((
+                status,
+                HttpResponse {
+                    status,
+                    headers,
+                    body,
+                },
+            ))
+        })
+        .await
+    }
+
+    /// Performs a `GET` with retries, streaming the body to an anonymous temporary file.
+    pub async fn download(
+        &self,
+        request: HttpRequest,
+        max_bytes: u64,
+    ) -> Result<Download, HttpError> {
+        let timeout = self.shared.settings.download_timeout;
+        let temp_dir = self.shared.settings.temp_dir.clone();
+        self.with_retries(|| async {
+            let file = match &temp_dir {
+                Some(dir) => tempfile::tempfile_in(dir),
+                None => tempfile::tempfile(),
+            }
+            .map_err(|e| HttpError::Transport(format!("cannot create a temporary file: {e}")))?;
+            let mut sink = FileSink { file, len: 0 };
+            let (status, headers) = self
+                .send_following_redirects(&request, max_bytes, timeout, &mut sink)
+                .await?;
+            let FileSink { mut file, len } = sink;
+            file.flush()
+                .and_then(|()| file.seek(SeekFrom::Start(0)).map(|_| ()))
+                .map_err(|e| HttpError::Transport(format!("temporary file: {e}")))?;
+            Ok((
+                status,
+                Download {
+                    status,
+                    headers,
+                    file,
+                    len,
+                },
+            ))
+        })
+        .await
+    }
+}
+
+/// Where a response body goes.
+trait BodySink: Send {
+    fn write(&mut self, chunk: &[u8]) -> Result<(), HttpError>;
+}
+
+impl BodySink for Vec<u8> {
+    fn write(&mut self, chunk: &[u8]) -> Result<(), HttpError> {
+        self.extend_from_slice(chunk);
+        Ok(())
+    }
+}
+
+struct FileSink {
+    file: std::fs::File,
+    len: u64,
+}
+
+impl BodySink for FileSink {
+    fn write(&mut self, chunk: &[u8]) -> Result<(), HttpError> {
+        self.len += chunk.len() as u64;
+        self.file
+            .write_all(chunk)
+            .map_err(|e| HttpError::Transport(format!("temporary file: {e}")))
+    }
 }
 
 enum Hop {
-    Done(HttpResponse),
+    Done(u16, Vec<(String, String)>),
     Redirect(Url),
 }
 
@@ -275,5 +376,13 @@ fn transport(error: reqwest::Error) -> HttpError {
 impl SourceHttp for ScopedHttp {
     fn get(&self, request: HttpRequest) -> BoxFuture<'_, Result<HttpResponse, HttpError>> {
         Box::pin(ScopedHttp::get(self, request))
+    }
+
+    fn download(
+        &self,
+        request: HttpRequest,
+        max_bytes: u64,
+    ) -> BoxFuture<'_, Result<Download, HttpError>> {
+        Box::pin(ScopedHttp::download(self, request, max_bytes))
     }
 }

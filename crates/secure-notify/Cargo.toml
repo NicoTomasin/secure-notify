@@ -25,6 +25,7 @@ getrandom = { workspace = true }
 secure-notify-conversation = { workspace = true }
 secure-notify-declarative = { workspace = true }
 secure-notify-plugin-host = { workspace = true }
+secure-notify-source-osv = { workspace = true }
 serde_json = { workspace = true }
 secure-notify-parser-bun = { workspace = true }
 secure-notify-parser-npm = { workspace = true }
