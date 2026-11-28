@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# CISA Known Exploited Vulnerabilities catalog (public; https://www.cisa.gov/robots.txt does not
+# disallow /sites/default/files/feeds/).
+
+id = "cisa-kev"
+name = "CISA Known Exploited Vulnerabilities"
+kind = "source"
+runtime = "native"
+version = "0.1.0"
+license = "AGPL-3.0-or-later"
+interval = "1h"
+default_enabled = true
+
+[capabilities]
+hosts = ["www.cisa.gov"]
+state = true

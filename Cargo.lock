@@ -1486,6 +1486,7 @@ dependencies = [
  "secure-notify-parser-npm",
  "secure-notify-parser-pnpm",
  "secure-notify-plugin-host",
+ "secure-notify-source-cisa-kev",
  "secure-notify-source-osv",
  "secure-notify-storage",
  "serde",
@@ -1585,6 +1586,17 @@ dependencies = [
  "tokio",
  "url",
  "wiremock",
+]
+
+[[package]]
+name = "secure-notify-source-cisa-kev"
+version = "0.0.0"
+dependencies = [
+ "jiff",
+ "secure-notify-core",
+ "secure-notify-model",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

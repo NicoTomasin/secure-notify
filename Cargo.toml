@@ -15,6 +15,7 @@ members = [
     "plugins/parsers/bun",
     "plugins/parsers/npm",
     "plugins/parsers/pnpm",
+    "plugins/sources/cisa-kev",
     "plugins/sources/osv",
     "xtask",
 ]
@@ -31,6 +32,7 @@ publish = false
 
 [workspace.dependencies]
 # Workspace crates
+secure-notify-source-cisa-kev = { path = "plugins/sources/cisa-kev" }
 secure-notify-source-osv = { path = "plugins/sources/osv" }
 secure-notify-declarative = { path = "crates/declarative" }
 secure-notify-plugin-host = { path = "crates/plugin-host" }

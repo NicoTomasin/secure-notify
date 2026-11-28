@@ -13,6 +13,7 @@ use secure_notify_core::sources::{
 };
 use secure_notify_declarative::FeedSource;
 use secure_notify_plugin_host::{HttpSettings, SharedHttpClient};
+use secure_notify_source_cisa_kev::KevSource;
 use secure_notify_source_osv::OsvSource;
 
 use crate::content;
@@ -24,6 +25,7 @@ pub(crate) fn registry() -> Result<Vec<Arc<dyn Source>>, String> {
         sources.push(Arc::new(FeedSource::new(definition)?));
     }
     sources.push(Arc::new(OsvSource::new()));
+    sources.push(Arc::new(KevSource::new()));
     Ok(sources)
 }
 
