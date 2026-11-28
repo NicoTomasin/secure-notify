@@ -254,6 +254,54 @@ async fn linked_identifiers_join_one_story_but_never_merge_several() {
 }
 
 #[tokio::test]
+async fn an_advisory_with_its_own_cve_is_not_joined_to_a_cve_it_cites() {
+    // The real OSV records GHSA-4xc9-xhrj-v574 (lodash, CVE-2018-16487) and GHSA-898c-q2cr-xwhg
+    // (axios, CVE-2026-44490), whose references include the NVD page of CVE-2018-16487.
+    let f = Fixture::new();
+    f.ingest(
+        vec![event(
+            "osv",
+            "GHSA-4xc9-xhrj-v574",
+            json!({"identifiers": {"cve": ["CVE-2018-16487"], "ghsa": ["GHSA-4xc9-xhrj-v574"]}}),
+        )],
+        false,
+    )
+    .await;
+    f.ingest(
+        vec![event(
+            "osv",
+            "GHSA-898c-q2cr-xwhg",
+            json!({
+                "identifiers": {"cve": ["CVE-2026-44490"], "ghsa": ["GHSA-898c-q2cr-xwhg"]},
+                "links": [
+                    "https://github.com/axios/axios/security/advisories/GHSA-898c-q2cr-xwhg",
+                    "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+                    "https://nvd.nist.gov/vuln/detail/CVE-2026-44490"
+                ]
+            }),
+        )],
+        false,
+    )
+    .await;
+    assert_eq!(f.count("SELECT count(*) FROM stories"), 2);
+    // An exploit that names only its own exploit ID still joins the CVE it links.
+    f.ingest(
+        vec![event(
+            "exploits",
+            "e1",
+            json!({
+                "kind": "exploit",
+                "identifiers": {"other": ["edb:1"]},
+                "links": ["https://nvd.nist.gov/vuln/detail/CVE-2018-16487"]
+            }),
+        )],
+        false,
+    )
+    .await;
+    assert_eq!(f.count("SELECT count(*) FROM stories"), 2);
+}
+
+#[tokio::test]
 async fn the_same_canonical_url_means_the_same_story() {
     let f = Fixture::new();
     f.ingest(

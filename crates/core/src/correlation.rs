@@ -253,7 +253,9 @@ fn explicit_identifiers(event: &NormalizedEvent) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Identifiers found in an event's title, summary, and links, not already explicit.
+/// Identifiers found in an event's title, summary, and links, not already explicit. Kinds the
+/// event carries explicitly are skipped: an advisory with its own CVE that cites another CVE is a
+/// different vulnerability (docs/architecture/deduplication.md#correlation-signals).
 fn linked_identifiers(event: &NormalizedEvent) -> Vec<(String, String)> {
     let text = format!(
         "{} {} {}",
@@ -266,7 +268,7 @@ fn linked_identifiers(event: &NormalizedEvent) -> Vec<(String, String)> {
     cves.into_iter()
         .map(|v| ("cve".to_string(), v))
         .chain(ghsas.into_iter().map(|v| ("ghsa".to_string(), v)))
-        .filter(|pair| !explicit.contains(pair))
+        .filter(|(kind, _)| !explicit.iter().any(|(k, _)| k == kind))
         .collect()
 }
 

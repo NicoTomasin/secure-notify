@@ -46,7 +46,9 @@ Applied in order; the first strong match wins.
    incident IDs are identifiers too.
 2. **Linked identifiers (strong).** Identifiers found in the event's links or content (e.g. a blog
    post linking to `GHSA-xxxx-xxxx-xxxx`) are treated as the event's identifiers, subject to the
-   family rule above.
+   family rule above. Linked identifiers of a kind the event already carries explicitly (CVE,
+   GHSA) are ignored: an advisory with its own CVE that cites another CVE in its references
+   describes a different vulnerability.
 3. **Canonical URL (strong).** URLs are normalized (lowercase host, no tracking parameters such as
    `utm_*`, no fragment, no trailing slash). The same canonical URL means the same story.
 4. **Organization and time (weak, incident family).** Same organization entity, compatible kind,
