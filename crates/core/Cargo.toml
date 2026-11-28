@@ -19,6 +19,8 @@ tokio = { workspace = true, features = ["rt", "macros"] }
 [dependencies]
 jiff = { workspace = true }
 secure-notify-model = { workspace = true }
+secure-notify-versions = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }

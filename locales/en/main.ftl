@@ -13,6 +13,7 @@ command-inventory = List, add, or remove inventory entries
 command-watch = Watch a technology
 command-unwatch = Stop watching something
 command-watching = List what you watch
+command-rules = Show your rules and set a minimum severity
 command-language = Show or change the bot language
 command-invite = Create an invite code for a person (admins)
 command-subscribers = List subscribers (admins)
@@ -83,6 +84,23 @@ watching-line = { $name } ({ $id }){ $origin ->
     [derived] {" "}· from your uploads
    *[manual] {""}
 }
+
+## /rules
+
+rules-header = { $default ->
+    [yes] Your rules (the defaults), in order; the first that matches decides:
+   *[no] Your rules, in order; the first that matches decides:
+}
+rule-notify = { $position }. Notify when { $conditions }.
+rule-notify-min = { $position }. Notify when { $conditions }, if the severity is { $level } or higher.
+rule-ignore = { $position }. Ignore when { $conditions }.
+rules-min-severity = Minimum severity: { $level }. Exploited stories are always notified.
+rules-min-severity-none = No minimum severity is set.
+rules-usage = Use /rules severity <critical|high|medium|low|off> or /rules reset.
+rules-severity-set = Minimum severity set to { $level }. Exploited stories are still notified.
+rules-severity-off = Minimum severity removed.
+rules-severity-invalid = “{ $level }” is not a level. Use critical, high, medium, low, or off.
+rules-reset = Your rules were reset to the defaults.
 
 ## /language
 

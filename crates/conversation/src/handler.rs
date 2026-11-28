@@ -7,11 +7,13 @@ use fluent_bundle::FluentArgs;
 use jiff::Timestamp;
 use secure_notify_core::app::{Core, Store};
 use secure_notify_core::inventory::{AddOutcome, MAX_COMPONENTS, MAX_UPLOAD_BYTES, UploadOutcome};
+use secure_notify_core::matching::{RuleAction, RuleMatch};
 use secure_notify_core::ports::StoreError;
 use secure_notify_core::subscribers::{
     EndpointRef, Joined, RemoveOutcome, Role, Subscriber, SubscriberId, Subscribers,
 };
 use secure_notify_core::watches::{UnwatchOutcome, WatchOrigin, WatchOutcome};
+use secure_notify_model::SeverityLevel;
 
 use crate::commands::{self, Permission};
 use crate::i18n::{I18n, REFERENCE_LANGUAGE};
@@ -157,6 +159,7 @@ impl<S: Store> Conversation<S> {
             "language" => self.language(&subscriber, &line.args).await?,
             "upload" => self.upload_prompt(&language),
             "inventory" => self.inventory(&subscriber, &line.args).await?,
+            "rules" => self.rules(&subscriber, &line.args).await?,
             "watch" => self.watch(&subscriber, &line.args.join(" ")).await?,
             "unwatch" => self.unwatch(&subscriber, &line.args.join(" ")).await?,
             "watching" => self.watching(&subscriber).await?,
@@ -445,6 +448,73 @@ impl<S: Store> Conversation<S> {
         })
     }
 
+    async fn rules(&self, subscriber: &Subscriber, args: &[&str]) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let service = &self.core.rules;
+        match args {
+            [] => {}
+            ["reset"] => {
+                service.reset(subscriber.id).await?;
+                return Ok(self.say(language, "rules-reset", None));
+            }
+            ["severity", "off"] => {
+                service.set_min_severity(subscriber.id, None).await?;
+                return Ok(self.say(language, "rules-severity-off", None));
+            }
+            ["severity", level] => {
+                let mut values = FluentArgs::new();
+                values.set("level", level.to_ascii_lowercase());
+                let parsed = SeverityLevel::parse(&level.to_ascii_lowercase())
+                    .filter(|l| *l != SeverityLevel::Unknown);
+                let Some(parsed) = parsed else {
+                    return Ok(self.say(language, "rules-severity-invalid", Some(&values)));
+                };
+                service
+                    .set_min_severity(subscriber.id, Some(parsed))
+                    .await?;
+                return Ok(self.say(language, "rules-severity-set", Some(&values)));
+            }
+            _ => return Ok(self.say(language, "rules-usage", None)),
+        }
+        let (rules, defaults) = service.effective(subscriber.id).await?;
+        let mut header = FluentArgs::new();
+        header.set("default", if defaults { "yes" } else { "no" });
+        let mut blocks = vec![Block::Heading(self.i18n.text(
+            language,
+            "rules-header",
+            Some(&header),
+        ))];
+        for (index, rule) in rules.iter().enumerate() {
+            let mut values = FluentArgs::new();
+            values.set("position", index + 1);
+            values.set("conditions", rule_conditions(&rule.conditions));
+            let key = match (rule.action, rule.min_severity) {
+                (RuleAction::Ignore, _) => "rule-ignore",
+                (RuleAction::Notify, None) => "rule-notify",
+                (RuleAction::Notify, Some(level)) => {
+                    values.set("level", level.as_str());
+                    "rule-notify-min"
+                }
+            };
+            blocks.push(Block::Item(self.i18n.text(language, key, Some(&values))));
+        }
+        let min = service.min_severity(subscriber.id).await?;
+        let mut values = FluentArgs::new();
+        let key = match min {
+            Some(level) => {
+                values.set("level", level.as_str());
+                "rules-min-severity"
+            }
+            None => "rules-min-severity-none",
+        };
+        blocks.push(Block::Text(self.i18n.text(language, key, Some(&values))));
+        blocks.push(Block::Text(self.i18n.text(language, "rules-usage", None)));
+        Ok(Message {
+            blocks,
+            ..Message::default()
+        })
+    }
+
     fn catalog(&self) -> String {
         self.core
             .watches
@@ -611,6 +681,38 @@ impl<S: Store> Conversation<S> {
         };
         Ok(self.say(language, key, Some(&values)))
     }
+}
+
+/// A rule's conditions as technical tokens, the same in every language.
+fn rule_conditions(conditions: &RuleMatch) -> String {
+    let mut parts = Vec::new();
+    if let Some(exploited) = conditions.exploited {
+        parts.push(format!("exploited = {exploited}"));
+    }
+    if let Some(available) = conditions.exploit_available {
+        parts.push(format!("exploit_available = {available}"));
+    }
+    if !conditions.relevance.is_empty() {
+        let levels: Vec<&str> = conditions.relevance.iter().map(|r| r.as_str()).collect();
+        parts.push(format!("relevance = {}", levels.join(", ")));
+    }
+    if !conditions.kind.is_empty() {
+        let kinds: Vec<&str> = conditions.kind.iter().map(|k| k.as_str()).collect();
+        parts.push(format!("kind = {}", kinds.join(", ")));
+    }
+    if let Some(entity) = &conditions.entity {
+        parts.push(format!("entity = {entity}"));
+    }
+    if let Some(component) = &conditions.component {
+        parts.push(format!("component = {component}"));
+    }
+    if !conditions.source.is_empty() {
+        parts.push(format!("source = {}", conditions.source.join(", ")));
+    }
+    if let Some(min) = conditions.min_epss {
+        parts.push(format!("min_epss = {min}"));
+    }
+    parts.join("; ")
 }
 
 /// Times shown to subscribers; the MVP shows UTC.

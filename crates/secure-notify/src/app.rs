@@ -8,6 +8,7 @@ use secure_notify_conversation::{About, Conversation, I18n};
 use secure_notify_core::app::Core;
 use secure_notify_core::correlation::Correlator;
 use secure_notify_core::inventory::Parser;
+use secure_notify_core::matching::Matcher;
 use secure_notify_core::ports::{Clock, Random};
 use secure_notify_core::sources::{
     BoxFuture, FetchOutput, RawItem, Source, SourceError, SourceHttp, SourceInfo, SourceState,
@@ -83,13 +84,32 @@ pub(crate) async fn announce_pairing_code(
     Ok(())
 }
 
+/// The pipeline stages after ingestion.
+pub(crate) struct Pipeline {
+    /// Correlates events into stories.
+    pub(crate) correlator: Arc<Correlator<Database>>,
+    /// Queues stories for the subscribers they concern.
+    pub(crate) matcher: Arc<Matcher<Database>>,
+}
+
+impl Pipeline {
+    /// Runs every stage that has due work, until none has.
+    pub(crate) async fn settle(&self) {
+        match self.matcher.run_once().await {
+            Ok(0) => {}
+            Ok(stories) => tracing::info!(stories, "stories matched"),
+            Err(error) => tracing::error!(error = %error, "matching failed"),
+        }
+    }
+}
+
 /// Starts the pipeline tasks: one scheduled task per enabled source, and the daily retention pass.
 /// Unknown source IDs in `[sources]` stop the instance.
 pub(crate) fn start_pipeline(
     settings: &Settings,
     database: &Database,
     clock: Arc<dyn Clock>,
-) -> Result<Arc<Correlator<Database>>, String> {
+) -> Result<Arc<Pipeline>, String> {
     let registry = crate::sources::registry()?;
     for id in settings.instance.sources.keys() {
         if !registry.iter().any(|s| &s.info().id == id) {
@@ -130,17 +150,34 @@ pub(crate) fn start_pipeline(
             Arc::clone(&correlator),
         ));
     }
-    let (store, retention) = (database.clone(), settings.instance.retention.clone());
+    let (store, retention, retention_clock) = (
+        database.clone(),
+        settings.instance.retention.clone(),
+        clock.clone(),
+    );
+    let matcher_clock = clock;
     tokio::spawn(async move {
         loop {
-            match crate::app::retention_pass(&store, clock.as_ref(), &retention).await {
+            match crate::app::retention_pass(&store, retention_clock.as_ref(), &retention).await {
                 Ok(()) => {}
                 Err(error) => tracing::error!(error = %error, "retention pass failed"),
             }
             tokio::time::sleep(std::time::Duration::from_hours(24)).await;
         }
     });
-    Ok(correlator)
+    let matcher = Arc::new(Matcher::new(database.clone(), matcher_clock));
+    let pipeline = Arc::new(Pipeline {
+        correlator,
+        matcher,
+    });
+    let background = Arc::clone(&pipeline);
+    tokio::spawn(async move {
+        loop {
+            background.settle().await;
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        }
+    });
+    Ok(pipeline)
 }
 
 async fn retention_pass(

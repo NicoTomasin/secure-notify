@@ -13,6 +13,7 @@ command-inventory = Ver, agregar o quitar entradas del inventario
 command-watch = Seguir una tecnología
 command-unwatch = Dejar de seguir algo
 command-watching = Ver lo que seguís
+command-rules = Ver tus reglas y fijar una severidad mínima
 command-language = Ver o cambiar el idioma del bot
 command-invite = Crear un código de invitación para una persona (admins)
 command-subscribers = Ver los suscriptores (admins)
@@ -83,6 +84,23 @@ watching-line = { $name } ({ $id }){ $origin ->
     [derived] {" "}· por tus archivos subidos
    *[manual] {""}
 }
+
+## /rules
+
+rules-header = { $default ->
+    [yes] Tus reglas (las predeterminadas), en orden; decide la primera que coincide:
+   *[no] Tus reglas, en orden; decide la primera que coincide:
+}
+rule-notify = { $position }. Notificar cuando { $conditions }.
+rule-notify-min = { $position }. Notificar cuando { $conditions }, si la severidad es { $level } o mayor.
+rule-ignore = { $position }. Ignorar cuando { $conditions }.
+rules-min-severity = Severidad mínima: { $level }. Las historias explotadas se notifican siempre.
+rules-min-severity-none = No hay severidad mínima.
+rules-usage = Usá /rules severity <critical|high|medium|low|off> o /rules reset.
+rules-severity-set = Severidad mínima fijada en { $level }. Las historias explotadas se siguen notificando.
+rules-severity-off = Se quitó la severidad mínima.
+rules-severity-invalid = “{ $level }” no es un nivel. Usá critical, high, medium, low u off.
+rules-reset = Tus reglas volvieron a las predeterminadas.
 
 ## /language
 

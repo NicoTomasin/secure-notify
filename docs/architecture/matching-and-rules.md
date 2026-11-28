@@ -159,7 +159,9 @@ or component version; optionally time-limited) are applied before rules, and the
 > Status: `Proposed`
 
 New subscribers start with this rule set, so the bot is useful without configuration. Subscribers
-can reset to defaults at any time.
+can reset to defaults at any time. A subscriber without rules of their own uses this set, and
+`/rules reset` removes their own rules. `/rules` lists the rules that apply and the minimum
+severity; `/rules severity <level>` and `/rules severity off` set and remove it.
 
 | Order | Match | Action |
 |---|---|---|
