@@ -102,7 +102,7 @@ pub fn render_plain(message: &Message) -> String {
             Block::Link { label, .. } => lines.push(label.clone()),
         }
     }
-    for action in &message.actions {
+    for action in message.actions.iter().filter(|a| !a.command.is_empty()) {
         lines.push(format!("[{}] {}", action.label, action.command));
     }
     lines.join("\n")

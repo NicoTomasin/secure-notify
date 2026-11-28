@@ -7,6 +7,7 @@ use std::sync::Arc;
 use secure_notify_conversation::{About, Conversation, I18n};
 use secure_notify_core::app::Core;
 use secure_notify_core::correlation::Correlator;
+use secure_notify_core::delivery::{DispatchCounts, Dispatcher, Outbox};
 use secure_notify_core::inventory::Parser;
 use secure_notify_core::matching::Matcher;
 use secure_notify_core::ports::{Clock, Random};
@@ -90,6 +91,8 @@ pub(crate) struct Pipeline {
     pub(crate) correlator: Arc<Correlator<Database>>,
     /// Queues stories for the subscribers they concern.
     pub(crate) matcher: Arc<Matcher<Database>>,
+    /// Sends due notifications.
+    pub(crate) dispatcher: Arc<Dispatcher<Database>>,
 }
 
 impl Pipeline {
@@ -100,6 +103,16 @@ impl Pipeline {
             Ok(stories) => tracing::info!(stories, "stories matched"),
             Err(error) => tracing::error!(error = %error, "matching failed"),
         }
+        match self.dispatcher.run_once().await {
+            Ok(counts) if counts == DispatchCounts::default() => {}
+            Ok(counts) => tracing::info!(
+                sent = counts.sent,
+                dropped = counts.dropped,
+                retried = counts.retried,
+                "notifications dispatched"
+            ),
+            Err(error) => tracing::error!(error = %error, "dispatch failed"),
+        }
     }
 }
 
@@ -109,6 +122,7 @@ pub(crate) fn start_pipeline(
     settings: &Settings,
     database: &Database,
     clock: Arc<dyn Clock>,
+    outbox: Arc<dyn Outbox>,
 ) -> Result<Arc<Pipeline>, String> {
     let registry = crate::sources::registry()?;
     for id in settings.instance.sources.keys() {
@@ -165,10 +179,16 @@ pub(crate) fn start_pipeline(
             tokio::time::sleep(std::time::Duration::from_hours(24)).await;
         }
     });
+    let dispatcher = Arc::new(Dispatcher::new(
+        database.clone(),
+        outbox,
+        matcher_clock.clone(),
+    ));
     let matcher = Arc::new(Matcher::new(database.clone(), matcher_clock));
     let pipeline = Arc::new(Pipeline {
         correlator,
         matcher,
+        dispatcher,
     });
     let background = Arc::clone(&pipeline);
     tokio::spawn(async move {

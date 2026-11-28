@@ -1477,6 +1477,7 @@ dependencies = [
  "clap",
  "dotenvy",
  "getrandom 0.4.3",
+ "insta",
  "jiff",
  "secure-notify-conversation",
  "secure-notify-core",

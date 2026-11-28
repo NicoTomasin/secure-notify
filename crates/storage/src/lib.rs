@@ -9,6 +9,7 @@
 
 mod correlation;
 mod database;
+mod delivery;
 mod instance;
 mod inventory;
 mod matching;

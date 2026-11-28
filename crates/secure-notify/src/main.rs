@@ -8,6 +8,7 @@ mod config;
 mod console;
 mod content;
 mod logging;
+mod outbox;
 mod sources;
 
 use std::path::{Path, PathBuf};
@@ -136,10 +137,14 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
                 );
             }
             let database = open_database(&settings.data_dir).await?;
-            let conversation =
-                app::conversation(settings, database.clone(), Arc::new(SystemClock))?;
+            let conversation = Arc::new(app::conversation(
+                settings,
+                database.clone(),
+                Arc::new(SystemClock),
+            )?);
             app::announce_pairing_code(&conversation).await?;
-            app::start_pipeline(settings, &database, Arc::new(SystemClock))?;
+            let outbox = Arc::new(outbox::PlatformOutbox::new(Arc::clone(&conversation), None));
+            app::start_pipeline(settings, &database, Arc::new(SystemClock), outbox)?;
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
                 data_dir = %settings.data_dir.display(),
@@ -185,13 +190,23 @@ async fn run(command: Command, settings: &Settings) -> Result<(), String> {
         Command::Dev(DevCommand::Console { script }) => {
             let database = open_database(&settings.data_dir).await?;
             let clock = Arc::new(console::DevClock::default());
-            let conversation = app::conversation(settings, database.clone(), clock.clone())?;
+            let conversation = Arc::new(app::conversation(
+                settings,
+                database.clone(),
+                clock.clone(),
+            )?);
             app::announce_pairing_code(&conversation).await?;
-            let pipeline = app::start_pipeline(settings, &database, clock.clone())?;
+            let sink = Arc::new(outbox::ConsoleSink::default());
+            let outbox = Arc::new(outbox::PlatformOutbox::new(
+                Arc::clone(&conversation),
+                Some(Arc::clone(&sink)),
+            ));
+            let pipeline = app::start_pipeline(settings, &database, clock.clone(), outbox)?;
             let ok = console::run(
                 &conversation,
                 &database,
                 &pipeline,
+                &sink,
                 &clock,
                 script.as_deref(),
             )

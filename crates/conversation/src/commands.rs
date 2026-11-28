@@ -91,6 +91,12 @@ pub const COMMANDS: &[CommandSpec] = &[
         description: "command-rules",
     },
     CommandSpec {
+        name: "mutes",
+        permission: Permission::Subscriber,
+        availability: Availability::Private,
+        description: "command-mutes",
+    },
+    CommandSpec {
         name: "language",
         permission: Permission::Subscriber,
         availability: Availability::Private,

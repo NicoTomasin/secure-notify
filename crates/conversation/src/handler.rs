@@ -133,6 +133,12 @@ impl<S: Store> Conversation<S> {
         if let (Some(subscriber), Some(attachment)) = (&resolved, &incoming.attachment) {
             return Ok(Some(self.upload(subscriber, attachment).await?));
         }
+        // Inline action without a command equivalent (platforms with buttons only).
+        if let (Some(subscriber), Some(story)) =
+            (&resolved, incoming.text.trim().strip_prefix("details:"))
+        {
+            return Ok(Some(self.details(&subscriber.language, story).await?));
+        }
         let Some(line) = commands::parse(&incoming.text) else {
             return Ok(None);
         };
@@ -160,6 +166,7 @@ impl<S: Store> Conversation<S> {
             "upload" => self.upload_prompt(&language),
             "inventory" => self.inventory(&subscriber, &line.args).await?,
             "rules" => self.rules(&subscriber, &line.args).await?,
+            "mutes" => self.mutes(&subscriber, &line.args).await?,
             "watch" => self.watch(&subscriber, &line.args.join(" ")).await?,
             "unwatch" => self.unwatch(&subscriber, &line.args.join(" ")).await?,
             "watching" => self.watching(&subscriber).await?,
@@ -446,6 +453,127 @@ impl<S: Store> Conversation<S> {
             blocks,
             ..Message::default()
         })
+    }
+
+    /// The "Details" inline action (`details:<story>`): sources, identifiers, affected
+    /// components, and related stories that are still retained.
+    async fn details(&self, language: &str, story: &str) -> Result<Message, StoreError> {
+        let Ok(id) = story.parse::<i64>() else {
+            return Ok(self.say(language, "details-gone", None));
+        };
+        let database = self.core().subscribers.store();
+        let Some(details) = database
+            .story_details(secure_notify_core::correlation::StoryId(id))
+            .await?
+        else {
+            return Ok(self.say(language, "details-gone", None));
+        };
+        let mut blocks = vec![Block::Heading(details.title)];
+        let mut values = FluentArgs::new();
+        values.set("ids", details.identifiers.join(", "));
+        blocks.push(Block::Text(self.i18n.text(
+            language,
+            "details-identifiers",
+            Some(&values),
+        )));
+        let mut values = FluentArgs::new();
+        values.set("sources", details.sources.join(", "));
+        blocks.push(Block::Text(self.i18n.text(
+            language,
+            "details-sources",
+            Some(&values),
+        )));
+        for (component, fixed) in details.affected {
+            let mut values = FluentArgs::new();
+            values.set("component", component);
+            let key = if fixed.is_empty() {
+                "details-affected-unfixed"
+            } else {
+                values.set("fixed", fixed.join(", "));
+                "details-affected"
+            };
+            blocks.push(Block::Item(self.i18n.text(language, key, Some(&values))));
+        }
+        for title in details.related {
+            let mut values = FluentArgs::new();
+            values.set("title", title);
+            blocks.push(Block::Item(self.i18n.text(
+                language,
+                "details-related",
+                Some(&values),
+            )));
+        }
+        Ok(Message {
+            blocks,
+            ..Message::default()
+        })
+    }
+
+    async fn mutes(&self, subscriber: &Subscriber, args: &[&str]) -> Result<Message, StoreError> {
+        let language = &subscriber.language;
+        let service = &self.core().mutes;
+        let mut values = FluentArgs::new();
+        match args {
+            [] => {
+                let mutes = service.list(subscriber.id).await?;
+                if mutes.is_empty() {
+                    return Ok(self.say(language, "mutes-none", None));
+                }
+                let mut blocks = vec![Block::Heading(self.i18n.text(
+                    language,
+                    "mutes-header",
+                    None,
+                ))];
+                for mute in mutes {
+                    let mut line = FluentArgs::new();
+                    line.set("id", mute.id);
+                    line.set("scope", mute.scope);
+                    line.set("value", mute.value);
+                    let key = match mute.until {
+                        Some(until) => {
+                            line.set("until", format_time(until));
+                            "mutes-line-until"
+                        }
+                        None => "mutes-line",
+                    };
+                    blocks.push(Block::Item(self.i18n.text(language, key, Some(&line))));
+                }
+                blocks.push(Block::Text(self.i18n.text(language, "mutes-usage", None)));
+                Ok(Message {
+                    blocks,
+                    ..Message::default()
+                })
+            }
+            ["add", scope, value] | ["add", scope, value, _] => {
+                let duration = args.get(3).copied();
+                values.set("scope", (*scope).to_string());
+                values.set("value", (*value).to_string());
+                match service.add(subscriber.id, scope, value, duration).await? {
+                    Ok(None) => Ok(self.say(language, "mutes-added", Some(&values))),
+                    Ok(Some(until)) => {
+                        values.set("until", format_time(until));
+                        Ok(self.say(language, "mutes-added-until", Some(&values)))
+                    }
+                    Err(_) => Ok(Message::text([
+                        self.i18n.text(language, "mutes-invalid", None),
+                        self.i18n.text(language, "mutes-usage", None),
+                    ])),
+                }
+            }
+            ["remove", id] => {
+                let Ok(id) = id.trim_start_matches('#').parse::<i64>() else {
+                    return Ok(self.say(language, "mutes-usage", None));
+                };
+                values.set("id", id);
+                let key = if service.remove(subscriber.id, id).await? {
+                    "mutes-removed"
+                } else {
+                    "mutes-not-found"
+                };
+                Ok(self.say(language, key, Some(&values)))
+            }
+            _ => Ok(self.say(language, "mutes-usage", None)),
+        }
     }
 
     async fn rules(&self, subscriber: &Subscriber, args: &[&str]) -> Result<Message, StoreError> {

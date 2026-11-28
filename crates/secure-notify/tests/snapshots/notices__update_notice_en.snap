@@ -1,0 +1,14 @@
+---
+source: crates/secure-notify/tests/notices.rs
+expression: text
+---
+Update · [HIGH] Vulnerability: Command Injection in lodash
+Known to be exploited.
+• It is now known to be exploited.
+In your inventory: pkg:npm/lodash 4.17.20 (fixed in 4.17.21).
+CVSS: 7.2 (v3.1)
+Reported by 2 sources.
+Details: https://osv.dev/vulnerability/GHSA-35jh-r3h4-6jhm
+[Mute this story] /mutes add story 1
+[Mute pkg:npm/lodash] /mutes add component pkg:npm/lodash
+[I no longer use pkg:npm/lodash 4.17.20] /inventory remove pkg:npm/lodash@4.17.20

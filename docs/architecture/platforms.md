@@ -109,7 +109,7 @@ documentation states those steps and costs.
 | `/identities` | subscriber | Manage watched identities (see [exposure-monitoring.md](exposure-monitoring.md)). |
 | `/rules` | subscriber | View, edit, and reset rules; set the minimum severity (see [matching-and-rules.md](matching-and-rules.md)). |
 | `/delivery` | subscriber | View and edit delivery modes and routing (see [delivery.md](delivery.md)). |
-| `/mutes` | subscriber | List and remove mutes. |
+| `/mutes` | subscriber | List, add (optionally time-limited), and remove mutes (see [delivery.md](delivery.md#inline-actions)). |
 | `/sources` | subscriber | List enabled sources; exclude one (creates an `ignore` rule). |
 | `/search <query>` | subscriber | Search stored stories by identifier, entity, or text. |
 | `/report` | subscriber | One-off report of everything currently known to affect the subscriber's inventory and watches. |
